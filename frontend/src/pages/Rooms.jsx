@@ -20,6 +20,9 @@ export default function RoomPage() {
   const [formLoading, setFormLoading] = useState(false)
   const [activeNavItem, setActiveNavItem] = useState("rooms")
   const [editingRoom, setEditingRoom] = useState(null)
+  const [timetables, setTimetables] = useState([])
+  const [selectedRoom, setSelectedRoom] = useState(null)
+  const [showAllocationModal, setShowAllocationModal] = useState(false)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,22 +31,6 @@ export default function RoomPage() {
     capacity: "",
     type: "",
     equipment: "",
-    availability: {
-      monday: [],
-      tuesday: [],
-      wednesday: [],
-      thursday: [],
-      friday: [],
-      saturday: [],
-      sunday: [],
-    },
-  })
-
-  // Time slot state for availability
-  const [newTimeSlot, setNewTimeSlot] = useState({
-    day: "monday",
-    start: "",
-    end: "",
   })
 
   const navigationItems = [
@@ -56,7 +43,6 @@ export default function RoomPage() {
   ]
 
   const roomTypes = [
-    { value: "lecture_hall", label: "Lecture Hall" },
     { value: "lab", label: "Laboratory" },
     { value: "seminar_room", label: "Seminar Room" },
     { value: "auditorium", label: "Auditorium" },
@@ -73,15 +59,6 @@ export default function RoomPage() {
       capacity: "",
       type: "",
       equipment: "",
-      availability: {
-        monday: [],
-        tuesday: [],
-        wednesday: [],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: [],
-      },
     })
     setEditingRoom(null)
   }
@@ -99,9 +76,72 @@ export default function RoomPage() {
     }
   }
 
+  // Fetch all timetables
+  const fetchTimetables = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/timetables")
+      setTimetables(res.data)
+    } catch (error) {
+      console.error("Error fetching timetables:", error)
+    }
+  }
+
   useEffect(() => {
     fetchRooms()
+    fetchTimetables()
   }, [])
+
+  // Get room allocation schedule
+  const getRoomAllocation = (roomId) => {
+    const allocation = {}
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    const periods = [1, 2, 3, 4, 5, 6, 7, 8]
+
+    // Initialize empty schedule
+    days.forEach(day => {
+      allocation[day] = {}
+      periods.forEach(period => {
+        allocation[day][period] = null
+      })
+    })
+
+    // Fill with allocations from timetables
+    timetables.forEach(timetable => {
+      if (timetable.schedule && Array.isArray(timetable.schedule)) {
+        timetable.schedule.forEach(entry => {
+          if (entry.roomId === roomId) {
+            const day = entry.day
+            const period = entry.period
+            if (allocation[day] && allocation[day][period] !== undefined) {
+              allocation[day][period] = {
+                courseName: entry.courseName || 'Unknown',
+                courseCode: entry.courseCode || 'N/A',
+                className: timetable.class ? `${typeof timetable.class.name === 'object' ? timetable.class.name?.name || 'Class' : timetable.class.name} - ${typeof timetable.class.section === 'object' ? timetable.class.section?.section || 'N/A' : timetable.class.section}` : (typeof timetable.name === 'object' ? timetable.name?.name || 'Timetable' : timetable.name),
+                facultyName: entry.facultyName || 'TBD'
+              }
+            }
+          }
+        })
+      }
+    })
+
+    return allocation
+  }
+
+  // Get room utilization percentage
+  const getRoomUtilization = (roomId) => {
+    const allocation = getRoomAllocation(roomId)
+    let allocatedSlots = 0
+    const totalSlots = 40 // 8 periods × 5 days
+
+    Object.values(allocation).forEach(daySchedule => {
+      Object.values(daySchedule).forEach(slot => {
+        if (slot !== null) allocatedSlots++
+      })
+    })
+
+    return Math.round((allocatedSlots / totalSlots) * 100)
+  }
 
   // Load room data for editing
   const handleEditRoom = (room) => {
@@ -112,15 +152,6 @@ export default function RoomPage() {
       capacity: room.capacity?.toString() || "",
       type: room.type || "",
       equipment: room.equipment?.join(", ") || "",
-      availability: room.availability || {
-        monday: [],
-        tuesday: [],
-        wednesday: [],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: [],
-      },
     })
     setEditingRoom(room)
     setShowForm(true)
@@ -161,7 +192,8 @@ export default function RoomPage() {
   }
 
   // Delete room
-  const handleDeleteRoom = async (id) => {
+  const handleDeleteRoom = async (room) => {
+    const id = typeof room === 'object' ? room._id : room;
     if (!confirm("Are you sure you want to delete this room?")) return
 
     try {
@@ -171,41 +203,15 @@ export default function RoomPage() {
         setShowForm(false)
       }
       fetchRooms()
+      alert("Room deleted successfully")
     } catch (error) {
       console.error("Error deleting room:", error)
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || "Failed to delete room";
+      alert(errorMessage);
     }
   }
 
-  // Add time slot to availability
-  const addTimeSlot = () => {
-    if (!newTimeSlot.start || !newTimeSlot.end) return
 
-    const timeSlot = {
-      start: newTimeSlot.start,
-      end: newTimeSlot.end,
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      availability: {
-        ...prev.availability,
-        [newTimeSlot.day]: [...prev.availability[newTimeSlot.day], timeSlot],
-      },
-    }))
-
-    setNewTimeSlot({ day: newTimeSlot.day, start: "", end: "" })
-  }
-
-  // Remove time slot from availability
-  const removeTimeSlot = (day, index) => {
-    setFormData((prev) => ({
-      ...prev,
-      availability: {
-        ...prev.availability,
-        [day]: prev.availability[day].filter((_, i) => i !== index),
-      },
-    }))
-  }
 
   // Table columns
   const columns = [
@@ -214,9 +220,9 @@ export default function RoomPage() {
       label: "Room Details",
       render: (room) => (
         <div className="space-y-1">
-          <div className="font-medium text-cyan-100">{room.name}</div>
+          <div className="font-medium text-cyan-100">{typeof room.name === 'object' ? room.name?.name || 'Room' : room.name}</div>
           <div className="text-sm text-slate-400">
-            {room.building}, Floor {room.floor}
+            {typeof room.building === 'object' ? room.building?.building || room.building?.name || 'N/A' : room.building}, Floor {typeof room.floor === 'object' ? room.floor?.floor || 'N/A' : room.floor}
           </div>
         </div>
       ),
@@ -226,7 +232,7 @@ export default function RoomPage() {
       label: "Type",
       render: (room) => (
         <Badge className="bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 text-emerald-300 border-emerald-500/30 hover:from-emerald-500/30 hover:to-emerald-600/30 transition-all duration-300">
-          {room.type?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+          {typeof room.type === 'object' ? (room.type?.type || room.type?.name || 'N/A') : room.type?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
         </Badge>
       ),
     },
@@ -236,7 +242,7 @@ export default function RoomPage() {
       render: (room) => (
         <div className="flex items-center gap-2 text-slate-300">
           <Users className="h-3 w-3 text-cyan-400" />
-          {room.capacity}
+          {typeof room.capacity === 'object' ? room.capacity?.capacity || 'N/A' : room.capacity}
         </div>
       ),
     },
@@ -262,33 +268,20 @@ export default function RoomPage() {
       ),
     },
     {
-      key: "availability",
-      label: "Available Days",
+      key: "utilization",
+      label: "Utilization",
       render: (room) => {
-        const availableDays = room.availability
-          ? Object.keys(room.availability).filter((day) => room.availability[day]?.length > 0)
-          : []
-
+        const utilization = getRoomUtilization(room._id)
+        const color = utilization > 70 ? 'red' : utilization > 40 ? 'yellow' : 'green'
+        const colorClasses = {
+          red: 'from-red-500/20 to-red-600/20 text-red-300 border-red-500/30',
+          yellow: 'from-yellow-500/20 to-yellow-600/20 text-yellow-300 border-yellow-500/30',
+          green: 'from-green-500/20 to-green-600/20 text-green-300 border-green-500/30'
+        }
         return (
-          <div className="flex flex-wrap gap-1">
-            {availableDays.length > 0 ? (
-              availableDays.slice(0, 3).map((day) => (
-                <Badge
-                  key={day}
-                  className="bg-gradient-to-r from-violet-500/20 to-violet-600/20 text-violet-300 border-violet-500/30 hover:from-violet-500/30 hover:to-violet-600/30 transition-all duration-300 text-xs capitalize"
-                >
-                  {day.slice(0, 3)}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-slate-500 text-sm">Not set</span>
-            )}
-            {availableDays.length > 3 && (
-              <Badge className="bg-gradient-to-r from-slate-500/20 to-slate-600/20 text-slate-300 border-slate-500/30 hover:from-slate-500/30 hover:to-slate-600/30 transition-all duration-300 text-xs">
-                +{availableDays.length - 3}
-              </Badge>
-            )}
-          </div>
+          <Badge className={`bg-gradient-to-r ${colorClasses[color]} transition-all duration-300 text-xs`}>
+            {utilization}% Used
+          </Badge>
         )
       },
     },
@@ -297,6 +290,17 @@ export default function RoomPage() {
       label: "Actions",
       render: (room) => (
         <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-violet-500/20 to-violet-600/20 hover:from-violet-500/30 hover:to-violet-600/30 text-violet-300 border border-violet-500/30 hover:border-violet-400/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
+            onClick={() => {
+              setSelectedRoom(room)
+              setShowAllocationModal(true)
+            }}
+          >
+            <Calendar className="h-3 w-3 mr-1" />
+            Schedule
+          </Button>
           <Button
             size="sm"
             className="bg-gradient-to-r from-cyan-500/20 to-cyan-600/20 hover:from-cyan-500/30 hover:to-cyan-600/30 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
@@ -350,53 +354,14 @@ export default function RoomPage() {
       </div>
       {/* </CHANGE> */}
 
-      {/* Sidebar */}
-      <div className="w-64 bg-slate-900/40 backdrop-blur-xl border-r border-cyan-500/20 shadow-2xl shadow-cyan-500/10 p-6 flex flex-col justify-between relative z-10">
-        <div className="space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-              <Calendar className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-cyan-100">Scheduler</h2>
-              <p className="text-xs text-slate-400">Smart Classroom</p>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-            {navigationItems.map((item) => {
-              const IconComponent = item.icon
-              const isActive = activeNavItem === item.id
-              return (
-                <Link key={item.id} to={item.path} onClick={() => setActiveNavItem(item.id)}>
-                  <div
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group cursor-pointer ${isActive ? "bg-gradient-to-r from-cyan-500/20 to-blue-600/20 text-cyan-100 shadow-lg shadow-cyan-500/25 border border-cyan-500/30" : "text-slate-300 hover:bg-slate-800/50 hover:text-cyan-200 border border-transparent hover:border-slate-700/50"} backdrop-blur-sm`}
-                  >
-                    <IconComponent
-                      className={`w-5 h-5 transition-all duration-300 ${isActive ? "text-cyan-300" : "text-slate-400 group-hover:text-cyan-300"} group-hover:scale-110`}
-                    />
-                    <span className={`font-medium transition-colors duration-300 ${isActive ? "text-cyan-100" : ""}`}>
-                      {item.label}
-                    </span>
-                  </div>
-                </Link>
-              )
-            })}
-          </nav>
-        </div>
-      </div>
-      {/* </CHANGE> */}
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto p-8 space-y-8 relative z-10">
+      <div className="p-8 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-3">
             <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 bg-clip-text text-transparent leading-tight">
               Rooms
             </h1>
             <p className="text-lg text-slate-300 max-w-2xl leading-relaxed">
-              Manage classrooms, labs, and other facilities. Add, organize, and track room information with availability
-              schedules.
+              Manage classrooms, labs, and other facilities. Room availability is managed through timetable allocation.
             </p>
           </div>
           <Button
@@ -418,7 +383,7 @@ export default function RoomPage() {
                 {editingRoom ? "Edit Room" : "Add New Room"}
               </CardTitle>
               <CardDescription className="text-slate-400">
-                Fill in the room details and set availability schedule
+                Fill in the room details. Availability is based on timetable allocation.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
@@ -502,99 +467,13 @@ export default function RoomPage() {
                   />
                 </div>
 
-                {/* Availability Section */}
-                <div>
-                  <Label className="text-slate-300 font-medium mb-3 block">Availability Schedule</Label>
-
-                  {/* Add Time Slot */}
-                  <div className="bg-slate-800/30 p-4 rounded-lg border border-slate-600/30 mb-4 backdrop-blur-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                      <div>
-                        <Label className="text-sm text-slate-400">Day</Label>
-                        <Select
-                          value={newTimeSlot.day}
-                          onValueChange={(value) => setNewTimeSlot({ ...newTimeSlot, day: value })}
-                        >
-                          <SelectTrigger className="text-sm bg-slate-800/50 border-slate-600/50 text-slate-200 backdrop-blur-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-800/90 backdrop-blur-xl border-slate-600/50 text-slate-200">
-                            {weekDays.map((day) => (
-                              <SelectItem
-                                key={day}
-                                value={day}
-                                className="capitalize hover:bg-slate-700/50 focus:bg-slate-700/50"
-                              >
-                                {day}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-sm text-slate-400">Start Time</Label>
-                        <Input
-                          type="time"
-                          className="text-sm bg-slate-800/50 border-slate-600/50 text-slate-200 backdrop-blur-sm"
-                          value={newTimeSlot.start}
-                          onChange={(e) => setNewTimeSlot({ ...newTimeSlot, start: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm text-slate-400">End Time</Label>
-                        <Input
-                          type="time"
-                          className="text-sm bg-slate-800/50 border-slate-600/50 text-slate-200 backdrop-blur-sm"
-                          value={newTimeSlot.end}
-                          onChange={(e) => setNewTimeSlot({ ...newTimeSlot, end: e.target.value })}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={addTimeSlot}
-                        className="flex items-center gap-1 bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 text-emerald-300 border border-emerald-500/30 hover:border-emerald-400/50 backdrop-blur-sm transition-all duration-300"
-                      >
-                        <Plus className="h-3 w-3" /> Add Slot
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Current Availability */}
-                  <div className="space-y-3">
-                    {weekDays.map(
-                      (day) =>
-                        formData.availability[day]?.length > 0 && (
-                          <div
-                            key={day}
-                            className="border border-slate-600/30 rounded-lg p-3 bg-slate-800/20 backdrop-blur-sm"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-slate-300 capitalize">{day}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {formData.availability[day].map((slot, index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-md px-3 py-1 backdrop-blur-sm"
-                                >
-                                  <Clock className="h-3 w-3 text-blue-400" />
-                                  <span className="text-sm text-blue-300">
-                                    {slot.start} - {slot.end}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeTimeSlot(day, index)}
-                                    className="text-red-400 hover:text-red-300 transition-colors duration-200"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ),
-                    )}
+                {/* Availability Info */}
+                <div className="bg-slate-800/30 p-4 rounded-lg border border-slate-600/30 backdrop-blur-sm">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <Clock className="h-4 w-4 text-cyan-400" />
+                    <span className="text-sm">
+                      Room availability will be determined by timetable allocation. Labs are allocated for lab sessions, other room types for lectures and seminars.
+                    </span>
                   </div>
                 </div>
 
@@ -645,8 +524,121 @@ export default function RoomPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Room Allocation Modal */}
+        {showAllocationModal && selectedRoom && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <Card className="bg-slate-900/95 backdrop-blur-xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/20 w-full max-w-6xl max-h-[90vh] overflow-hidden">
+              <CardHeader className="border-b border-cyan-500/20 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-2xl font-bold text-cyan-100">
+                      {typeof selectedRoom.name === 'object' ? selectedRoom.name?.name || 'Room' : selectedRoom.name} - Allocation Schedule
+                    </CardTitle>
+                    <CardDescription className="text-slate-400 mt-1">
+                      {typeof selectedRoom.type === 'object' ? selectedRoom.type?.type || selectedRoom.type?.name || 'N/A' : selectedRoom.type} • Floor {typeof selectedRoom.floor === 'object' ? selectedRoom.floor?.floor || 'N/A' : selectedRoom.floor} • Capacity: {typeof selectedRoom.capacity === 'object' ? selectedRoom.capacity?.capacity || 'N/A' : selectedRoom.capacity}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setShowAllocationModal(false)
+                      setSelectedRoom(null)
+                    }}
+                    className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-300"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6 overflow-auto max-h-[calc(90vh-140px)]">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="bg-slate-700/30 backdrop-blur-sm">
+                        <th className="border border-slate-600/50 p-3 text-cyan-200 font-semibold text-sm">Period / Day</th>
+                        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => (
+                          <th key={day} className="border border-slate-600/50 p-3 text-cyan-200 font-semibold text-sm">
+                            {day}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((period) => {
+                        const timeSlots = [
+                          "09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00",
+                          "14:00-15:00", "15:00-16:00", "16:00-17:00", "17:00-18:00"
+                        ]
+                        const allocation = getRoomAllocation(selectedRoom._id)
+                        
+                        return (
+                          <tr key={period} className="hover:bg-slate-700/20 transition-colors">
+                            <td className="border border-slate-600/50 p-3 bg-slate-800/40 text-slate-300 font-medium">
+                              <div className="flex flex-col items-start gap-1">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-cyan-400" />
+                                  <span className="font-bold">P{period}</span>
+                                </div>
+                                <span className="text-xs text-slate-400">{timeSlots[period - 1]}</span>
+                              </div>
+                            </td>
+                            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => {
+                              const slot = allocation[day]?.[period]
+                              
+                              if (!slot) {
+                                return (
+                                  <td key={`${day}-${period}`} className="border border-slate-600/50 p-2">
+                                    <div className="h-20 bg-slate-800/20 rounded border-2 border-dashed border-slate-700/50 flex items-center justify-center">
+                                      <span className="text-slate-500 text-xs">Free</span>
+                                    </div>
+                                  </td>
+                                )
+                              }
+
+                              return (
+                                <td key={`${day}-${period}`} className="border border-slate-600/50 p-2">
+                                  <div className="p-3 rounded-lg h-full bg-gradient-to-br from-emerald-500/20 to-green-600/20 text-emerald-200 border border-emerald-500/30">
+                                    <div className="font-bold text-sm mb-2">
+                                      {slot.courseCode}
+                                    </div>
+                                    <div className="text-xs space-y-1">
+                                      <div className="font-medium truncate">{slot.courseName}</div>
+                                      <div className="truncate text-emerald-300">{slot.className}</div>
+                                      <div className="truncate text-emerald-400">{slot.facultyName}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Lunch Break Info */}
+                <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 text-orange-300 text-sm">
+                    <Clock className="h-4 w-4" />
+                    <span className="font-medium">Lunch Break: 13:00 - 14:00 (Between Period 4 & 5)</span>
+                  </div>
+                </div>
+
+                {/* Utilization Summary */}
+                <div className="mt-4 p-4 bg-slate-800/30 border border-slate-600/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-300 font-medium">Room Utilization:</span>
+                    <Badge className="bg-gradient-to-r from-cyan-500/20 to-blue-600/20 text-cyan-300 border-cyan-500/30 text-sm px-3 py-1">
+                      {getRoomUtilization(selectedRoom._id)}% of available time slots
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
-      {/* </CHANGE> */}
     </div>
   )
 }

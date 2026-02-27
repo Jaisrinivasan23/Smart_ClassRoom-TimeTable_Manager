@@ -9,6 +9,12 @@ import { roomsRouter, } from "./routes/roomsRoute.js";
 import { timetablesRouter, } from "./routes/timetableRoute.js";
 import { aiRouter, } from "./routes/aiRoute.js";
 import { notificationsRouter, } from "./routes/notificationsRoute.js";
+import { authRouter, } from "./routes/authRoute.js";
+import { departmentsRouter, } from "./routes/departmentsRoute.js";
+import { classesRouter, } from "./routes/classesRoute.js";
+import leaveRequestRouter from "./routes/leaveRequestRoute.js";
+import roomChangeRequestRouter from "./routes/roomChangeRequestRoute.js";
+import { studentRouter } from "./routes/studentRoute.js";
 
 dotenv.config({ quiet: true });
 
@@ -26,9 +32,15 @@ app.use("/api/rooms", roomsRouter);
 app.use("/api/timetables", timetablesRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/departments", departmentsRouter);
+app.use("/api/classes", classesRouter);
+app.use("/api/leave-requests", leaveRequestRouter);
+app.use("/api/room-change-requests", roomChangeRequestRouter);
+app.use("/api/students", studentRouter);
 
 
-process.env.PORT || 5000;
-app.listen(process.env.PORT, () => {
-  console.log(`Server is running on port ${process.env.PORT}`);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

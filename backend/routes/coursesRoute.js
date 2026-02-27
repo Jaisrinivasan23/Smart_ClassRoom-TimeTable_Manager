@@ -5,7 +5,9 @@ export const coursesRouter = Router();
 
 coursesRouter.get("/", async (req, res) => {
   try {
-    const courses = await Course.find();
+    const courses = await Course.find()
+      .populate("departments", "name code")
+      .populate("faculty", "name email");
     res.json(courses);
   } catch (error) {
     console.error("Error fetching courses:", error);
@@ -16,7 +18,9 @@ coursesRouter.get("/", async (req, res) => {
 
 coursesRouter.get("/:id", async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
+    const course = await Course.findById(req.params.id)
+      .populate("departments", "name code")
+      .populate("faculty", "name email");
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
     }
@@ -31,7 +35,9 @@ coursesRouter.get("/:id", async (req, res) => {
 coursesRouter.post("/", async (req, res) => {
   try {
     const course = new Course(req.body);
-    await course.save(); 
+    await course.save();
+    await course.populate("departments", "name code");
+    await course.populate("faculty", "name email");
     res.status(201).json(course);
   } catch (error) {
     console.error("Error creating course:", error);
@@ -45,7 +51,9 @@ coursesRouter.put("/:id", async (req, res) => {
     const course = await Course.findByIdAndUpdate(req.params.id, req.body, {
       new: true, 
       runValidators: true, 
-    });
+    })
+      .populate("departments", "name code")
+      .populate("faculty", "name email");
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
     }

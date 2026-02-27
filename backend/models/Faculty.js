@@ -12,7 +12,18 @@ const FacultySchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    department: { type: String, required: true },
+    password: { type: String, default: "123" }, // Hardcoded default password
+    phone: { type: String, trim: true },
+    employeeId: { type: String, unique: true, sparse: true, trim: true },
+    departments: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Department",
+      required: true 
+    }],
+    courses: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Course"
+    }],
     specialization: [{ type: String }],
     availability: {
       monday: [TimeSlotSchema],
@@ -28,6 +39,10 @@ const FacultySchema = new mongoose.Schema(
       preferredTimeSlots: [{ type: String }],
       avoidTimeSlots: [{ type: String }],
     },
+    unavailabilityRequests: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "LeaveRequest"
+    }],
   },
   {
     timestamps: true, 

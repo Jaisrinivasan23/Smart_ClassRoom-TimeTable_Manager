@@ -16,18 +16,29 @@ const RoomSchema = new mongoose.Schema(
     capacity: { type: Number, required: true },
     type: { 
       type: String, 
-      enum: ["lecture_hall", "lab", "seminar_room", "auditorium"], 
+      enum: ["lab", "seminar_room", "auditorium"], 
       required: true 
     },
     equipment: [{ type: String }],
     availability: {
-      monday: [TimeSlotSchema],
-      tuesday: [TimeSlotSchema],
-      wednesday: [TimeSlotSchema],
-      thursday: [TimeSlotSchema],
-      friday: [TimeSlotSchema],
-      saturday: [TimeSlotSchema],
-      sunday: [TimeSlotSchema],
+      type: {
+        monday: [TimeSlotSchema],
+        tuesday: [TimeSlotSchema],
+        wednesday: [TimeSlotSchema],
+        thursday: [TimeSlotSchema],
+        friday: [TimeSlotSchema],
+        saturday: [TimeSlotSchema],
+        sunday: [TimeSlotSchema],
+      },
+      default: {
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: [],
+      }
     },
   },
   {

@@ -5,6 +5,7 @@ import Faculty from '../models/Faculty.js';
 import Room from '../models/Room.js';
 import Timetable from '../models/Timetable.js';
 import Notification from '../models/Notification.js';
+import Department from '../models/Department.js';
 import dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
@@ -79,21 +80,42 @@ export async function generateTimetableWithAI(request) {
 
     // 1. Fetch all necessary data from the database
     console.log('Fetching DB data...');
-    const allCourses = await Course.find({});
-    const allFaculty = await Faculty.find({});
+    
+    // Find the department by name to get its ID
+    const departmentDoc = await Department.findOne({ 
+      $or: [
+        { name: { $regex: new RegExp(department, 'i') } },
+        { code: { $regex: new RegExp(department, 'i') } }
+      ]
+    });
+    
+    if (!departmentDoc) {
+      throw new Error(`Department "${department}" not found. Please check the department name.`);
+    }
+    
+    const allCourses = await Course.find({}).populate('departments', 'name code');
+    const allFaculty = await Faculty.find({}).populate('departments', 'name code');
     const allRooms = await Room.find({});
 
     // Filter data for the specific request
-    const relevantCourses = allCourses.filter(c =>
-      (c.department || '').toLowerCase() === department.toLowerCase() &&
-      Number(c.semester) === Number(semester)
-    );
+    const relevantCourses = allCourses.filter(c => {
+      // Check if course belongs to the requested department
+      const hasDepartment = Array.isArray(c.departments) && c.departments.some(dept => 
+        dept._id.toString() === departmentDoc._id.toString()
+      );
+      return hasDepartment && Number(c.semester) === Number(semester);
+    });
 
     if (relevantCourses.length === 0) {
       throw new Error(`No courses found for ${department}, Semester ${semester}. Please check your database.`);
     }
 
-    const relevantFaculty = allFaculty.filter(f => (f.department || '').toLowerCase() === department.toLowerCase());
+    const relevantFaculty = allFaculty.filter(f => {
+      // Check if faculty belongs to the requested department
+      return Array.isArray(f.departments) && f.departments.some(dept => 
+        dept._id.toString() === departmentDoc._id.toString()
+      );
+    });
 
     // 2. Engineer the detailed prompt for Gemini
      const prompt = `
@@ -141,7 +163,7 @@ export async function generateTimetableWithAI(request) {
     
     // ===== FIXED CODE =====
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt
     });
     
@@ -198,12 +220,41 @@ export async function generateTimetableWithAI(request) {
     const created = await timetable.save();
     console.log(`Timetable saved successfully! ID: ${created._id}`);
 
-    // Create a success notification
+    // Create a success notification for admin
     await new Notification({
       title: 'AI Timetable Generated',
       message: `Generated timetable "${created.name}" with ${totalHours} entries.`,
       type: 'success',
     }).save();
+
+    // Create notifications for each faculty assigned in this timetable
+    const facultyAllocations = {};
+    enrichedSchedule.forEach(entry => {
+      if (entry.facultyId) {
+        if (!facultyAllocations[entry.facultyId]) {
+          facultyAllocations[entry.facultyId] = {
+            facultyName: entry.facultyName,
+            courses: new Set(),
+            slots: [],
+          };
+        }
+        facultyAllocations[entry.facultyId].courses.add(entry.courseName || entry.courseCode);
+        facultyAllocations[entry.facultyId].slots.push(`${entry.day} P${entry.period}`);
+      }
+    });
+
+    for (const [fId, alloc] of Object.entries(facultyAllocations)) {
+      try {
+        await new Notification({
+          title: "Class Allocated",
+          message: `You have been allocated ${alloc.courses.size} course(s) (${[...alloc.courses].join(', ')}) in ${created.name} across ${alloc.slots.length} period(s).`,
+          type: "info",
+          facultyId: fId,
+        }).save();
+      } catch (e) {
+        console.warn(`Failed to create allocation notification for faculty ${fId}:`, e.message);
+      }
+    }
 
     return created;
 

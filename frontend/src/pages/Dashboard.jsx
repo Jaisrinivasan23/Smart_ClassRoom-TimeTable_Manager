@@ -18,31 +18,23 @@ import {
   Bell,
   LayoutDashboard,
   MessageSquare,
+  Building2,
+  GraduationCap,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Chatbot } from "@/components/Chatbot"
 
-export default function Dashboard() {
+export default function Dashboard({ user }) {
   const [loading, setLoading] = useState(true)
   const [courses, setCourses] = useState([])
   const [faculty, setFaculty] = useState([])
   const [rooms, setRooms] = useState([])
   const [timetables, setTimetables] = useState([])
   const [notifications, setNotifications] = useState([])
-  const [activeNavItem, setActiveNavItem] = useState("dashboard")
 
   // --- State for Chatbot ---
   const [isChatOpen, setIsChatOpen] = useState(false)
   // -------------------------
-
-  const navigationItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
-    { id: "courses", label: "Courses", icon: BookOpen, path: "/courses" },
-    { id: "faculty", label: "Faculty", icon: Users, path: "/faculty" },
-    { id: "rooms", label: "Rooms", icon: Home, path: "/rooms" },
-    { id: "timetables", label: "Timetables", icon: Calendar, path: "/timetables" },
-    { id: "notifications", label: "Notifications", icon: Bell, path: "/notifications" },
-  ]
 
   useEffect(() => {
     const fetchData = async () => {
@@ -220,7 +212,7 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-cyan-600/5"></div>
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -230,58 +222,7 @@ export default function Dashboard() {
         <div className="absolute bottom-10 left-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl animate-bounce delay-700"></div>
       </div>
 
-      <div className="w-64 bg-slate-800/30 backdrop-blur-xl border-r border-slate-700/50 shadow-2xl relative z-10">
-        <div className="p-6 space-y-8">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-             
-              <div>
-                <h2 className="text-lg font-bold text-white">Smart Scheduler</h2>
-                <p className="text-xs text-slate-400">Smart Classroom</p>
-              </div>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-            {navigationItems.map((item) => {
-              const IconComponent = item.icon
-              const isActive = activeNavItem === item.id
-              return (
-                <Link key={item.id} to={item.path} onClick={() => setActiveNavItem(item.id)}>
-                  <div
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group cursor-pointer ${
-                      isActive
-                        ? "bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-white shadow-lg shadow-blue-500/10 border border-blue-500/30"
-                        : "text-slate-300 hover:bg-slate-700/30 hover:text-white hover:border hover:border-slate-600/50"
-                    }`}
-                  >
-                    <IconComponent
-                      className={`w-5 h-5 transition-transform duration-300 ${isActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200"} group-hover:scale-110`}
-                    />
-                    <span className={`font-medium transition-colors duration-300 ${isActive ? "text-white" : ""}`}>
-                      {item.label}
-                    </span>
-                    {item.id === "notifications" && stats.pendingTasks > 0 && (
-                      <div className="ml-auto">
-                        <span
-                          className={`inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full ${
-                            isActive ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400 border border-red-500/30"
-                          }`}
-                        >
-                          {stats.pendingTasks}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              )
-            })}
-          </nav>
-        </div>
-        <div className="absolute bottom-6 left-6 right-6"></div>
-      </div>
-
-      <div className="flex-1 overflow-auto relative z-10">
+      <div className="relative z-10">
         <div className="p-8 space-y-8">
           {/* Header */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -293,6 +234,7 @@ export default function Dashboard() {
                 Welcome to your Smart Classroom Scheduler. Manage courses, faculty, and generate optimal timetables with
                 ease.
               </p>
+              {user && <p className="text-sm text-slate-400">Logged in as: {user.name} (Admin)</p>}
             </div>
             <div className="flex gap-4">
               <Link to="/timetables">
@@ -407,7 +349,7 @@ export default function Dashboard() {
                               )}
                             </div>
                             <p className="text-sm text-slate-400">
-                              {t.department} • Semester {t.semester} • {t.schedule?.length || 0} classes scheduled
+                              {typeof t.department === 'object' ? t.department?.name || t.department?.code || 'N/A' : t.department} • Semester {t.semester} • {t.schedule?.length || 0} classes scheduled
                             </p>
                           </div>
                           <Link to={`/timetables/`}>

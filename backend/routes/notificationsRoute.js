@@ -6,11 +6,35 @@ export const notificationsRouter = Router();
 
 notificationsRouter.get("/", async (req, res) => {
   try {
-    const notifications = await Notification.find(); 
+    const notifications = await Notification.find({ facultyId: null }).sort({ createdAt: -1 }); 
     res.json(notifications);
   } catch (error) {
     console.error("Error fetching notifications:", error);
     res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+// Get notifications for a specific faculty
+notificationsRouter.get("/faculty/:facultyId", async (req, res) => {
+  try {
+    const { facultyId } = req.params;
+    const notifications = await Notification.find({ facultyId }).sort({ createdAt: -1 });
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error fetching faculty notifications:", error);
+    res.status(500).json({ error: "Failed to fetch faculty notifications" });
+  }
+});
+
+// Mark all notifications as read for a faculty
+notificationsRouter.put("/faculty/:facultyId/read-all", async (req, res) => {
+  try {
+    const { facultyId } = req.params;
+    await Notification.updateMany({ facultyId, isRead: false }, { isRead: true });
+    res.json({ success: true, message: "All notifications marked as read" });
+  } catch (error) {
+    console.error("Error marking all notifications as read:", error);
+    res.status(500).json({ error: "Failed to mark notifications as read" });
   }
 });
 

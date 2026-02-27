@@ -6,8 +6,21 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FacultyForm } from "@/components/Faculty-Form"
 import { DataTable } from "@/components/Data-table"
-import { Plus, Users, Mail, Clock, Calendar, LayoutDashboard, BookOpen, Home, Bell } from "lucide-react"
+import { Plus, Users, Mail, Clock, Calendar, LayoutDashboard, BookOpen, Home, Bell, Eye, X } from "lucide-react"
 import { Link } from "react-router-dom"
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
+const TIME_SLOTS = [
+  { period: 1, start: "09:00", end: "10:00" },
+  { period: 2, start: "10:00", end: "11:00" },
+  { period: 3, start: "11:00", end: "12:00" },
+  { period: 4, start: "12:00", end: "13:00" },
+  { period: 5, start: "14:00", end: "15:00" },
+  { period: 6, start: "15:00", end: "16:00" },
+  { period: 7, start: "16:00", end: "17:00" },
+  { period: 8, start: "17:00", end: "18:00" },
+];
 
 export default function FacultyPage() {
   const [faculty, setFaculty] = useState([])
@@ -16,6 +29,9 @@ export default function FacultyPage() {
   const [formLoading, setFormLoading] = useState(false)
   const [activeNavItem, setActiveNavItem] = useState("faculty")
   const [editingFaculty, setEditingFaculty] = useState(null)
+  const [timetables, setTimetables] = useState([])
+  const [selectedFaculty, setSelectedFaculty] = useState(null)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   const navigationItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
@@ -49,8 +65,64 @@ export default function FacultyPage() {
     }
   }
 
+  const fetchTimetables = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/timetables")
+      setTimetables(Array.isArray(res.data) ? res.data : [])
+    } catch (error) {
+      console.error("Error fetching timetables:", error)
+      setTimetables([])
+    }
+  }
+
+  const getFacultySchedule = (facultyId) => {
+    const schedule = {};
+    
+    // Initialize empty schedule
+    DAYS.forEach(day => {
+      schedule[day] = {};
+      PERIODS.forEach(period => {
+        schedule[day][period] = null;
+      });
+    });
+
+    // Fill schedule from timetables
+    timetables.forEach(timetable => {
+      if (timetable.schedule && Array.isArray(timetable.schedule)) {
+        timetable.schedule.forEach(entry => {
+          if (String(entry.facultyId) === String(facultyId)) {
+            schedule[entry.day][entry.period] = {
+              ...entry,
+              className: timetable.class ? `${typeof timetable.class.name === 'object' ? timetable.class.name?.name || 'Class' : timetable.class.name} - ${typeof timetable.class.section === 'object' ? timetable.class.section?.section || 'N/A' : timetable.class.section}` : 'N/A',
+              timetableName: typeof timetable.name === 'object' ? timetable.name?.name || 'Timetable' : timetable.name
+            };
+          }
+        });
+      }
+    });
+
+    return schedule;
+  }
+
+  const getFacultyUtilization = (facultyId) => {
+    const schedule = getFacultySchedule(facultyId);
+    let allocatedSlots = 0;
+    
+    DAYS.forEach(day => {
+      PERIODS.forEach(period => {
+        if (schedule[day][period]) {
+          allocatedSlots++;
+        }
+      });
+    });
+
+    const totalSlots = DAYS.length * PERIODS.length;
+    return Math.round((allocatedSlots / totalSlots) * 100);
+  }
+
   useEffect(() => {
     fetchFaculty()
+    fetchTimetables()
   }, [])
 
   const handleCreateFaculty = async (data) => {
@@ -72,15 +144,21 @@ export default function FacultyPage() {
   }
 
   const handleDelete = async (facultyMember) => {
+    const id = typeof facultyMember === 'object' ? facultyMember._id : facultyMember;
+    if (!window.confirm(`Are you sure you want to delete ${facultyMember.name || 'this faculty member'}?`)) return;
+    
     try {
-      await axios.delete(`http://localhost:5000/api/faculty/${facultyMember._id}`)
-      if (editingFaculty && editingFaculty._id === facultyMember._id) {
+      await axios.delete(`http://localhost:5000/api/faculty/${id}`)
+      if (editingFaculty && editingFaculty._id === id) {
         setEditingFaculty(null)
         setShowForm(false)
       }
       fetchFaculty()
+      alert("Faculty member deleted successfully")
     } catch (error) {
-      console.error(error)
+      console.error("Error deleting faculty:", error)
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || "Failed to delete faculty member";
+      alert(errorMessage);
     }
   }
 
@@ -98,9 +176,49 @@ export default function FacultyPage() {
       ),
     },
     {
-      key: "department",
-      label: "Department",
-      render: (f) => <div className="text-slate-200">{f.department}</div>,
+      key: "departments",
+      label: "Departments",
+      render: (f) => (
+        <div className="flex flex-wrap gap-1">
+          {f.departments && Array.isArray(f.departments) ? (
+            f.departments.map((dept) => (
+              <Badge
+                key={dept._id}
+                className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-cyan-300 border border-cyan-400/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all duration-300"
+              >
+                {typeof dept === 'object' && dept?.name ? `${dept.name} (${dept.code})` : dept}
+              </Badge>
+            ))
+          ) : (
+            <div className="text-slate-400">N/A</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "courses",
+      label: "Courses",
+      render: (f) => (
+        <div className="flex flex-wrap gap-1">
+          {f.courses && Array.isArray(f.courses) && f.courses.length > 0 ? (
+            f.courses.slice(0, 3).map((course) => (
+              <Badge
+                key={typeof course === 'object' ? course._id : course}
+                className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-300 border border-orange-400/30 hover:from-orange-500/30 hover:to-amber-500/30 transition-all duration-300"
+              >
+                {typeof course === 'object' ? (course?.code || course?.name || 'Course') : course}
+              </Badge>
+            ))
+          ) : (
+            <div className="text-slate-400">N/A</div>
+          )}
+          {f.courses && f.courses.length > 3 && (
+            <Badge className="bg-gradient-to-r from-slate-600/20 to-slate-700/20 text-slate-300 border border-slate-500/30 hover:from-slate-600/30 hover:to-slate-700/30 transition-all duration-300">
+              +{f.courses.length - 3}
+            </Badge>
+          )}
+        </div>
+      ),
     },
     {
       key: "designation",
@@ -141,15 +259,11 @@ export default function FacultyPage() {
       key: "availability",
       label: "Availability",
       render: (f) => (
-        <div className="flex flex-col gap-1 text-sm">
-          {Object.entries(f.availability || {}).map(([day, slots]) =>
-            slots.length ? (
-              <div key={day} className="text-slate-300">
-                <span className="text-cyan-300 font-medium">{day.charAt(0).toUpperCase() + day.slice(1)}:</span>{" "}
-                {slots.map((s) => `${s.start}-${s.end}`).join(", ")}
-              </div>
-            ) : null,
-          )}
+        <div className="text-sm text-slate-300">
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3 text-cyan-400" />
+            <span>Mon-Sun: 9 AM - 5 PM</span>
+          </div>
         </div>
       ),
     },
@@ -171,6 +285,42 @@ export default function FacultyPage() {
           )}
         </div>
       ),
+    },
+
+    {
+      key: "schedule",
+      label: "Schedule",
+      render: (f) => {
+        const utilization = getFacultyUtilization(f._id);
+        return (
+          <div className="flex flex-col gap-2">
+            <Badge 
+              className={`w-fit ${
+                utilization === 0 
+                  ? 'bg-red-500/20 text-red-300 border-red-400/30' 
+                  : utilization < 40 
+                  ? 'bg-green-500/20 text-green-300 border-green-400/30'
+                  : utilization < 70
+                  ? 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30'
+                  : 'bg-red-500/20 text-red-300 border-red-400/30'
+              }`}
+            >
+              {utilization === 0 ? 'Not Allocated' : `${utilization}% Utilized`}
+            </Badge>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:border-cyan-300 transition-all duration-300"
+              onClick={() => {
+                setSelectedFaculty(f);
+                setShowScheduleModal(true);
+              }}
+            >
+              <Eye className="h-3 w-3 mr-1" /> View Schedule
+            </Button>
+          </div>
+        );
+      },
     },
 
     {
@@ -204,80 +354,16 @@ export default function FacultyPage() {
 
   if (loading)
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-        </div>
-
-        <div className="relative z-10 p-8 text-center text-slate-300 flex items-center justify-center min-h-screen">
-          <div className="space-y-4">
-            <div className="w-16 h-16 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto"></div>
-            <p className="text-xl">Loading faculty...</p>
-          </div>
+      <div className="p-8 text-center text-slate-300 flex items-center justify-center min-h-screen">
+        <div className="space-y-4">
+          <div className="w-16 h-16 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto"></div>
+          <p className="text-xl">Loading faculty...</p>
         </div>
       </div>
     )
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-
-        {/* Floating particles */}
-        <div className="absolute top-20 left-20 w-2 h-2 bg-cyan-400/40 rounded-full animate-bounce delay-300"></div>
-        <div className="absolute top-40 right-32 w-1 h-1 bg-blue-400/40 rounded-full animate-bounce delay-700"></div>
-        <div className="absolute bottom-32 left-40 w-1.5 h-1.5 bg-purple-400/40 rounded-full animate-bounce delay-1000"></div>
-        <div className="absolute bottom-20 right-20 w-2 h-2 bg-emerald-400/40 rounded-full animate-bounce delay-500"></div>
-      </div>
-
-      {/* Sidebar */}
-      <div className="relative z-10 w-64 bg-slate-800/40 backdrop-blur-xl border-r border-slate-700/50 shadow-2xl p-6 flex flex-col justify-between">
-        <div className="space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-              <Calendar className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-cyan-100">Scheduler</h2>
-              <p className="text-xs text-slate-400">Smart Classroom</p>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-            {navigationItems.map((item) => {
-              const IconComponent = item.icon
-              const isActive = activeNavItem === item.id
-              return (
-                <Link key={item.id} to={item.path} onClick={() => setActiveNavItem(item.id)}>
-                  <div
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group cursor-pointer ${
-                      isActive
-                        ? "bg-gradient-to-r from-cyan-600/30 to-blue-600/30 text-cyan-100 shadow-lg shadow-cyan-600/20 border border-cyan-500/30 backdrop-blur-sm"
-                        : "text-slate-300 hover:bg-slate-700/30 hover:text-cyan-200 backdrop-blur-sm border border-transparent hover:border-slate-600/30"
-                    }`}
-                  >
-                    <IconComponent
-                      className={`w-5 h-5 transition-all duration-300 ${
-                        isActive ? "text-cyan-300" : "text-slate-400 group-hover:text-cyan-400"
-                      } group-hover:scale-110`}
-                    />
-                    <span className={`font-medium transition-colors duration-300 ${isActive ? "text-cyan-100" : ""}`}>
-                      {item.label}
-                    </span>
-                  </div>
-                </Link>
-              )
-            })}
-          </nav>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="relative z-10 flex-1 overflow-auto p-8 space-y-8">
+    <div className="p-8 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-3">
             <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent leading-tight">
@@ -336,7 +422,117 @@ export default function FacultyPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+
+        {/* Schedule Modal */}
+        {showScheduleModal && selectedFaculty && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800/95 backdrop-blur-xl border-slate-700/50 shadow-2xl">
+              <CardHeader className="border-b border-slate-700/50 sticky top-0 bg-slate-800/95 backdrop-blur-xl z-10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-2xl text-cyan-100 flex items-center gap-3">
+                      <Calendar className="h-6 w-6 text-cyan-400" />
+                      {selectedFaculty.name}'s Schedule
+                    </CardTitle>
+                    <CardDescription className="text-slate-300 mt-2">
+                      Weekly teaching schedule for {selectedFaculty.email}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowScheduleModal(false);
+                      setSelectedFaculty(null);
+                    }}
+                    className="text-slate-400 hover:text-white hover:bg-slate-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+                <div className="mt-4">
+                  <Badge className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border-cyan-400/30 text-lg px-4 py-2">
+                    Utilization: {getFacultyUtilization(selectedFaculty._id)}% ({
+                      Object.values(getFacultySchedule(selectedFaculty._id))
+                        .flatMap(day => Object.values(day))
+                        .filter(slot => slot !== null).length
+                    }/40 slots)
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {getFacultyUtilization(selectedFaculty._id) === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="h-16 w-16 text-slate-600 mx-auto mb-4" />
+                    <p className="text-xl text-slate-400 font-semibold">Not Allocated</p>
+                    <p className="text-slate-500 mt-2">This faculty member has no classes assigned yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse min-w-[800px]">
+                      <thead>
+                        <tr className="bg-slate-900/50">
+                          <th className="border border-slate-700 p-3 text-left text-cyan-300 font-semibold w-32">
+                            Period / Day
+                          </th>
+                          {DAYS.map(day => (
+                            <th key={day} className="border border-slate-700 p-3 text-center text-cyan-300 font-semibold">
+                              {day}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {PERIODS.map(period => {
+                          const timeSlot = TIME_SLOTS.find(t => t.period === period);
+                          const schedule = getFacultySchedule(selectedFaculty._id);
+                          
+                          return (
+                            <tr key={period} className="hover:bg-slate-900/30 transition-colors">
+                              <td className="border border-slate-700 p-3 bg-slate-900/30">
+                                <div className="font-semibold text-cyan-300">Period {period}</div>
+                                <div className="text-xs text-slate-400">
+                                  {timeSlot?.start} - {timeSlot?.end}
+                                </div>
+                              </td>
+                              {DAYS.map(day => {
+                                const slot = schedule[day][period];
+                                return (
+                                  <td key={`${day}-${period}`} className="border border-slate-700 p-3">
+                                    {slot ? (
+                                      <div className="space-y-1">
+                                        <div className="font-semibold text-sm text-orange-300">
+                                          {slot.courseCode}
+                                        </div>
+                                        <div className="text-xs text-slate-300">
+                                          {slot.courseName}
+                                        </div>
+                                        <div className="text-xs text-cyan-400">
+                                          {slot.className}
+                                        </div>
+                                        {slot.roomName && (
+                                          <div className="text-xs text-slate-400">
+                                            Room: {slot.roomName}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="text-center text-slate-600 text-sm">Free</div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
     </div>
   )
 }

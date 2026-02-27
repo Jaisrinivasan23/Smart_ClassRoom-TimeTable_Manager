@@ -10,6 +10,16 @@ const NotificationSchema = new mongoose.Schema(
       required: true,
     },
     isRead: { type: Boolean, default: false },
+    facultyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Faculty",
+      default: null,
+    },
+    classId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Class",
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

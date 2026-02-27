@@ -3,13 +3,18 @@ import mongoose from "mongoose";
 const ScheduleEntrySchema = new mongoose.Schema(
   {
     courseId: { type: String, required: true },
+    courseName: { type: String },
+    courseCode: { type: String },
     facultyId: { type: String, required: true },
+    facultyName: { type: String },
     roomId: { type: String, required: true },
+    roomName: { type: String },
     day: {
       type: String,
       enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
       required: true,
     },
+    period: { type: Number, min: 1, max: 8 },  // Period number 1-8
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
   },
@@ -21,7 +26,16 @@ const TimetableSchema = new mongoose.Schema(
     name: { type: String, required: true },
     semester: { type: String, required: true },
     year: { type: Number, required: true },
-    department: { type: String, required: true },
+    department: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Department",
+      required: true 
+    },
+    class: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Class",
+      required: false  // Optional - for class-specific timetables
+    },
     schedule: [ScheduleEntrySchema],
     status: { type: String, enum: ["draft", "published", "archived"], default: "draft" },
     conflicts: [

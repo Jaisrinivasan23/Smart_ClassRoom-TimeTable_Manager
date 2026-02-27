@@ -5,24 +5,73 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import axios from "axios";
 
 const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 export function FacultyForm({ initialData = {}, onSubmit, loading = false }) {
+  const [departments, setDepartments] = useState([]);
+  const [availableCourses, setAvailableCourses] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    department: "",
+    departments: [],
+    courses: [],
     specialization: [],
     maxHoursPerWeek: 20,
-    availability: daysOfWeek.reduce((acc, day) => ({ ...acc, [day]: [] }), {}),
+    availability: daysOfWeek.reduce((acc, day) => ({ ...acc, [day]: [{ start: "09:00", end: "17:00" }] }), {}),
     preferences: { preferredTimeSlots: [], avoidTimeSlots: [] }
   });
 
   const [specializationInput, setSpecializationInput] = useState("");
-  const [timeSlotInput, setTimeSlotInput] = useState({ day: "", start: "", end: "" });
   const [preferredInput, setPreferredInput] = useState("");
   const [avoidInput, setAvoidInput] = useState("");
+
+  // Set default availability for all days (9 AM to 5 PM)
+  const defaultAvailability = daysOfWeek.reduce((acc, day) => ({
+    ...acc,
+    [day]: [{ start: "09:00", end: "17:00" }]
+  }), {});
+
+  // Fetch departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/departments");
+        setDepartments(response.data);
+      } catch (error) {
+        console.error("Failed to fetch departments:", error);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+  // Fetch courses based on selected departments
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (formData.departments.length === 0) {
+        setAvailableCourses([]);
+        return;
+      }
+      try {
+        const response = await axios.get("http://localhost:5000/api/courses");
+        const filteredCourses = response.data.filter(course => {
+          // Check if course belongs to any of the selected departments
+          if (Array.isArray(course.departments)) {
+            return course.departments.some(dept => 
+              formData.departments.includes(typeof dept === 'object' ? dept._id : dept)
+            );
+          }
+          return false;
+        });
+        setAvailableCourses(filteredCourses);
+      } catch (error) {
+        console.error("Failed to fetch courses:", error);
+      }
+    };
+    fetchCourses();
+  }, [formData.departments]);
 
   // ✅ FIXED: The useEffect now depends on the unique ID of the faculty member.
   // This prevents it from re-running and overwriting state on every render.
@@ -31,11 +80,15 @@ export function FacultyForm({ initialData = {}, onSubmit, loading = false }) {
       setFormData({
         name: initialData.name || "",
         email: initialData.email || "",
-        department: initialData.department || "",
+        departments: initialData.departments?.map(d => typeof d === 'object' ? d._id : d) || [],
+        courses: initialData.courses?.map(c => typeof c === 'object' ? c._id : c) || [],
         specialization: initialData.specialization || [],
         maxHoursPerWeek: initialData.maxHoursPerWeek || 20,
-        // Ensure availability is a complete object even if some days are missing in the DB
-        availability: daysOfWeek.reduce((acc, day) => ({ ...acc, [day]: initialData.availability?.[day] || [] }), {}),
+        // Ensure availability is a complete object - default to 9-5 if not set
+        availability: daysOfWeek.reduce((acc, day) => ({
+          ...acc,
+          [day]: initialData.availability?.[day] || [{ start: "09:00", end: "17:00" }]
+        }), {}),
         preferences: initialData.preferences || { preferredTimeSlots: [], avoidTimeSlots: [] }
       });
     } else {
@@ -43,10 +96,11 @@ export function FacultyForm({ initialData = {}, onSubmit, loading = false }) {
        setFormData({
         name: "",
         email: "",
-        department: "",
+        departments: [],
+        courses: [],
         specialization: [],
         maxHoursPerWeek: 20,
-        availability: daysOfWeek.reduce((acc, day) => ({ ...acc, [day]: [] }), {}),
+        availability: daysOfWeek.reduce((acc, day) => ({ ...acc, [day]: [{ start: "09:00", end: "17:00" }] }), {}),
         preferences: { preferredTimeSlots: [], avoidTimeSlots: [] }
       });
     }
@@ -67,29 +121,6 @@ export function FacultyForm({ initialData = {}, onSubmit, loading = false }) {
 
   const removeSpecialization = (spec) => {
     setFormData((prev) => ({ ...prev, specialization: prev.specialization.filter((s) => s !== spec) }));
-  };
-
-  const addTimeSlot = () => {
-    const { day, start, end } = timeSlotInput;
-    if (!day || !start || !end) return;
-    setFormData((prev) => ({
-      ...prev,
-      availability: {
-        ...prev.availability,
-        [day]: [...prev.availability[day], { start, end }]
-      }
-    }));
-    setTimeSlotInput({ day: "", start: "", end: "" });
-  };
-
-  const removeTimeSlot = (day, index) => {
-    setFormData((prev) => ({
-      ...prev,
-      availability: {
-        ...prev.availability,
-        [day]: prev.availability[day].filter((_, i) => i !== index)
-      }
-    }));
   };
 
   const addPreference = (type, value) => {
@@ -135,8 +166,83 @@ export function FacultyForm({ initialData = {}, onSubmit, loading = false }) {
           </div>
 
           <div>
-            <Label>Department</Label>
-            <Input value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} required />
+            <Label>Departments</Label>
+            <Select 
+              onValueChange={(value) => {
+                if (value && !formData.departments.includes(value)) {
+                  setFormData({ ...formData, departments: [...formData.departments, value] });
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select departments" />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((dept) => (
+                  <SelectItem key={dept._id} value={dept._id}>
+                    {dept.name} ({dept.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.departments.map((deptId) => {
+                const dept = departments.find(d => d._id === deptId);
+                return dept ? (
+                  <Badge key={deptId} className="flex items-center gap-1.5 py-1 px-2">
+                    {dept.name} ({dept.code})
+                    <button 
+                      type="button" 
+                      onClick={() => setFormData({ ...formData, departments: formData.departments.filter(id => id !== deptId) })} 
+                      className="rounded-full hover:bg-black/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : null;
+              })}
+            </div>
+          </div>
+
+          {/* Courses */}
+          <div>
+            <Label>Courses {formData.departments.length === 0 && <span className="text-xs text-slate-400">(Select departments first)</span>}</Label>
+            <Select 
+              disabled={formData.departments.length === 0}
+              onValueChange={(value) => {
+                if (value && !formData.courses.includes(value)) {
+                  setFormData({ ...formData, courses: [...formData.courses, value] });
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={formData.departments.length === 0 ? "Select departments first" : "Select courses"} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCourses.map((course) => (
+                  <SelectItem key={course._id} value={course._id}>
+                    {course.code} - {course.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.courses.map((courseId) => {
+                const course = availableCourses.find(c => c._id === courseId);
+                return course ? (
+                  <Badge key={courseId} className="flex items-center gap-1.5 py-1 px-2 bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                    {course.code} - {course.name}
+                    <button 
+                      type="button" 
+                      onClick={() => setFormData({ ...formData, courses: formData.courses.filter(id => id !== courseId) })} 
+                      className="rounded-full hover:bg-black/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : null;
+              })}
+            </div>
           </div>
 
           <div>
@@ -164,30 +270,10 @@ export function FacultyForm({ initialData = {}, onSubmit, loading = false }) {
             </div>
           </div>
 
-          {/* Availability */}
-          <div>
-            <Label>Availability</Label>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
-              <select value={timeSlotInput.day} onChange={(e) => setTimeSlotInput({ ...timeSlotInput, day: e.target.value })} className="border p-2 rounded h-10">
-                <option value="">Select Day</option>
-                {daysOfWeek.map((d) => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
-              </select>
-              <Input type="time" value={timeSlotInput.start} onChange={(e) => setTimeSlotInput({ ...timeSlotInput, start: e.target.value })} />
-              <Input type="time" value={timeSlotInput.end} onChange={(e) => setTimeSlotInput({ ...timeSlotInput, end: e.target.value })} />
-              <Button type="button" onClick={addTimeSlot} variant="outline">Add Slot</Button>
-            </div>
-             <div className="flex flex-wrap gap-2 mt-2">
-                {daysOfWeek.flatMap((day) =>
-                  formData.availability[day]?.map((slot, idx) => (
-                    <Badge key={`${day}-${idx}`} className="flex items-center gap-1.5 py-1 px-2">
-                      {day.charAt(0).toUpperCase() + day.slice(1)}: {slot.start}-{slot.end}
-                       <button type="button" className="rounded-full hover:bg-black/20 p-0.5" onClick={() => removeTimeSlot(day, idx)}>
-                         <X className="h-3 w-3" />
-                       </button>
-                    </Badge>
-                  ))
-                )}
-              </div>
+          {/* Availability - Hidden, set automatically to 9 AM - 5 PM for all days */}
+          <div className="text-sm text-slate-400 bg-slate-800/30 p-3 rounded-lg border border-slate-700">
+            <Label className="text-slate-300">Availability</Label>
+            <p className="mt-1">Faculty is available Monday-Sunday, 9:00 AM - 5:00 PM (set automatically)</p>
           </div>
 
           {/* Preferences */}

@@ -78,24 +78,28 @@ export function DataTable({ data, columns, searchKey, loading = false, onEdit, o
         <Table>
           <TableHeader>
             <TableRow className="border-b border-slate-600/30 hover:bg-slate-700/20">
-              {columns.map((column) => (
-                <TableHead
-                  key={column.key}
-                  className={`text-cyan-300 font-semibold py-4 px-6 ${
-                    column.sortable ? "cursor-pointer hover:bg-slate-700/30 transition-all duration-300" : ""
-                  }`}
-                  onClick={() => column.sortable && handleSort(column.key)}
-                >
-                  <div className="flex items-center gap-2">
-                    {column.label}
-                    {column.sortable && sortColumn === column.key && (
-                      <span className="text-cyan-400 font-bold text-sm animate-pulse">
-                        {sortDirection === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-              ))}
+              {columns.map((column, idx) => {
+                const headerText = column.header || column.label;
+                const columnKey = column.key || column.header;
+                return (
+                  <TableHead
+                    key={headerText || idx}
+                    className={`text-cyan-300 font-semibold py-4 px-6 ${
+                      column.sortable ? "cursor-pointer hover:bg-slate-700/30 transition-all duration-300" : ""
+                    }`}
+                    onClick={() => column.sortable && handleSort(columnKey)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {headerText}
+                      {column.sortable && sortColumn === columnKey && (
+                        <span className="text-cyan-400 font-bold text-sm animate-pulse">
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                );
+              })}
               {(onEdit || onDelete || onView) && (
                 <TableHead className="w-[80px] text-cyan-300 font-semibold py-4 px-6">Actions</TableHead>
               )}
@@ -109,24 +113,45 @@ export function DataTable({ data, columns, searchKey, loading = false, onEdit, o
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-700/50 to-slate-800/50 flex items-center justify-center">
                       <Search className="w-8 h-8 text-slate-500" />
                     </div>
-                    <p className="text-lg">No courses found</p>
+                    <p className="text-lg">No data found</p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               sortedData.map((item, index) => (
                 <TableRow
-                  key={item._id}
+                  key={item._id || index}
                   className="border-b border-slate-600/20 hover:bg-slate-700/20 transition-all duration-300 group"
                 >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.key}
-                      className="py-4 px-6 text-slate-200 group-hover:text-slate-100 transition-colors duration-300"
-                    >
-                      {column.render ? column.render(item) : String(item[column.key] || "")}
-                    </TableCell>
-                  ))}
+                  {columns.map((column, colIdx) => {
+                    const headerText = column.header || column.label;
+                    let cellContent;
+                    
+                    // Support both old format (render) and new format (accessor)
+                    if (column.render) {
+                      cellContent = column.render(item);
+                    } else if (typeof column.accessor === 'function') {
+                      cellContent = column.accessor(item);
+                    } else if (column.accessor) {
+                      cellContent = item[column.accessor];
+                    } else {
+                      cellContent = '';
+                    }
+                    
+                    // Safety check: if cellContent is an object, extract displayable text
+                    if (cellContent !== null && typeof cellContent === 'object' && !Array.isArray(cellContent) && !(cellContent instanceof Object && cellContent.$$typeof)) {
+                      cellContent = cellContent.name || cellContent.code || cellContent.title || cellContent.label || String(cellContent._id || '');
+                    }
+                    
+                    return (
+                      <TableCell
+                        key={`${item._id || index}-${headerText || colIdx}`}
+                        className="py-4 px-6 text-slate-200 group-hover:text-slate-100 transition-colors duration-300"
+                      >
+                        {cellContent}
+                      </TableCell>
+                    );
+                  })}
                   {(onEdit || onDelete || onView) && (
                     <TableCell className="py-4 px-6">
                       <DropdownMenu>

@@ -6,12 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import axios from "axios"
 
 export function CourseForm({ initialData = null, onSubmit, loading }) {
+  const [departments, setDepartments] = useState([]);
   const defaultData = {
     code: "",
     name: "",
-    department: "",
+    departments: [],
     credits: 3,
     semester: 1,
     year: new Date().getFullYear(),
@@ -24,12 +27,27 @@ export function CourseForm({ initialData = null, onSubmit, loading }) {
   const [formData, setFormData] = useState(defaultData)
   const [prerequisiteInput, setPrerequisiteInput] = useState("")
 
+  // Fetch departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/departments");
+        setDepartments(response.data);
+      } catch (error) {
+        console.error("Failed to fetch departments:", error);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
   useEffect(() => {
     if (initialData) {
       setFormData({
         code: initialData.code || "",
         name: initialData.name || "",
-        department: initialData.department || "",
+        departments: Array.isArray(initialData.departments) 
+          ? initialData.departments.map(d => typeof d === 'object' ? d._id : d)
+          : [],
         credits: initialData.credits ?? 3,
         semester: initialData.semester ?? 1,
         year: initialData.year ?? new Date().getFullYear(),
@@ -106,19 +124,48 @@ export function CourseForm({ initialData = null, onSubmit, loading }) {
               </div>
             </div>
 
-            {/* Department */}
+            {/* Departments */}
             <div className="space-y-3">
-              <label className="block text-sm font-semibold text-slate-200 mb-2 tracking-wide">Department *</label>
+              <label className="block text-sm font-semibold text-slate-200 mb-2 tracking-wide">Departments *</label>
               <div className="relative">
-                <Input
-                  type="text"
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  placeholder="e.g., Computer Science"
-                  required
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 hover:bg-white/15"
-                />
+                <Select 
+                  onValueChange={(value) => {
+                    if (value && !formData.departments.includes(value)) {
+                      setFormData((prev) => ({ ...prev, departments: [...prev.departments, value] }));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 hover:bg-white/15">
+                    <SelectValue placeholder="Select departments" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-white/20">
+                    {departments.map((dept) => (
+                      <SelectItem key={dept._id} value={dept._id} className="text-white hover:bg-slate-700">
+                        {dept.name} ({dept.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {formData.departments.map((deptId) => {
+                    const dept = departments.find(d => d._id === deptId);
+                    return dept ? (
+                      <Badge
+                        key={deptId}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-sm border border-cyan-400/30 text-cyan-100 rounded-xl hover:from-cyan-500/30 hover:to-blue-500/30 transition-all duration-300"
+                      >
+                        {dept.name} ({dept.code})
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, departments: prev.departments.filter(id => id !== deptId) }))}
+                          className="ml-1 hover:bg-red-400/20 rounded-full p-1 transition-colors duration-200"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-xl pointer-events-none opacity-0 hover:opacity-100 transition-opacity duration-300" />
               </div>
             </div>

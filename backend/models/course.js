@@ -5,7 +5,15 @@ const CourseSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     code: { type: String, required: true, unique: true },
-    department: { type: String, required: true },
+    departments: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Department",
+      required: true 
+    }],
+    faculty: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Faculty"
+    },
     credits: { type: Number, required: true },
     semester: { type: Number, required: true },
     year: { type: Number, required: true, default: new Date().getFullYear() },
@@ -16,7 +24,7 @@ const CourseSchema = new mongoose.Schema(
     
     type: {
       type: String,
-      enum: ["lecture", "lab", "seminar"],
+      enum: ["lecture", "lab", "practical", "seminar"],
       default: "lecture",
     },
     hoursPerWeek: {
