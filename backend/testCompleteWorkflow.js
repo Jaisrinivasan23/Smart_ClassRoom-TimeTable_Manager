@@ -1,8 +1,10 @@
 import mongoose from "mongoose";
 import axios from "axios";
 import fs from "fs";
+import dotenv from "dotenv";
 
-const MONGO_URI = "mongodb+srv://root:2005@cluster0.ijbszlr.mongodb.net/?appName=Cluster0";
+dotenv.config();
+const MONGO_URI = process.env.MONGO_URI;
 const API_BASE = "http://localhost:5000/api";
 
 // Import models for direct DB checking

@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 import Class from "./models/Class.js";
 import Student from "./models/Student.js";
 import Notification from "./models/Notification.js";
 import Department from "./models/Department.js";
 
-const MONGO_URI = "mongodb+srv://root:2005@cluster0.ijbszlr.mongodb.net/?appName=Cluster0";
+dotenv.config();
+const MONGO_URI = process.env.MONGO_URI;
 
 async function migrateClassStudents() {
   try {
