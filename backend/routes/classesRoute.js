@@ -4,6 +4,8 @@ import Student from "../models/Student.js";
 import Notification from "../models/Notification.js";
 import Timetable from "../models/Timetable.js";
 
+console.log("✅ classesRoute.js loaded");
+
 export const classesRouter = Router();
 
 // Get all classes
@@ -76,16 +78,117 @@ classesRouter.get("/:id", async (req, res) => {
 // Create new class
 classesRouter.post("/", async (req, res) => {
   try {
-    const classData = new Class(req.body);
+    console.log("=== POST /api/classes ENDPOINT HIT ===");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+    
+    const { students, ...classInfo } = req.body;
+    
+    console.log("=== CREATE CLASS REQUEST ===");
+    console.log("Class info:", classInfo);
+    console.log("Students array:", students ? `${students.length} students` : "No students");
+    console.log("Students data:", students);
+    
+    // Create the class first
+    const classData = new Class(classInfo);
     await classData.save();
+    
+    // Store the department ID before populate changes it to an object
+    const departmentId = classData.department;
+    
     await classData.populate("department", "name code");
-    res.status(201).json(classData);
+
+    // If students array is provided, create Student documents
+    if (students && Array.isArray(students) && students.length > 0) {
+      console.log(`Processing ${students.length} students...`);
+      const createdStudents = [];
+      
+      for (const studentData of students) {
+        const { name, rollNumber, email } = studentData;
+        
+        if (!name || !rollNumber) {
+          console.log(`  Skipping invalid student:`, studentData);
+          continue;
+        }
+
+        // Check if student already exists
+        let student = await Student.findOne({ rollNumber: rollNumber.toUpperCase() });
+        
+        if (!student) {
+          // Create new student
+          try {
+            student = await Student.create({
+              name: name.trim(),
+              rollNumber: rollNumber.toUpperCase().trim(),
+              email: email?.trim() || "",
+              password: "123",
+              class: classData._id,
+              department: departmentId, // Use the stored ID, not the populated object
+              year: classData.year,
+              semester: classData.semester,
+            });
+            createdStudents.push({
+              rollNumber: student.rollNumber,
+              name: student.name,
+              email: student.email,
+            });
+            console.log(`  ✓ Created student: ${student.name} (${student.rollNumber})`);
+          } catch (error) {
+            console.error(`  ✗ Error creating student ${rollNumber}:`, error.message);
+          }
+        } else if (!student.class) {
+          // Student exists but has no class - assign this class
+          student.class = classData._id;
+          student.department = departmentId;
+          student.year = classData.year;
+          student.semester = classData.semester;
+          await student.save();
+          createdStudents.push({
+            rollNumber: student.rollNumber,
+            name: student.name,
+            email: student.email,
+          });
+          console.log(`  ✓ Assigned existing student: ${student.name} (${student.rollNumber})`);
+        } else {
+          console.log(`  ⊘ Student ${rollNumber} already has a class, skipping`);
+        }
+      }
+
+      // Update class with created students and count
+      classData.students = createdStudents;
+      classData.numberOfStudents = createdStudents.length;
+      await classData.save();
+
+      // Send welcome notification
+      if (createdStudents.length > 0) {
+        await Notification.create({
+          title: "Welcome to Your Class",
+          message: `You have been assigned to ${classData.name}. You will receive notifications about faculty changes, room changes, and other important updates.`,
+          type: "info",
+          classId: classData._id,
+        });
+        console.log(`  ✓ Sent welcome notification to ${createdStudents.length} students`);
+      }
+
+      console.log(`✓ Created ${createdStudents.length} students for class ${classData.name}`);
+    } else {
+      console.log("No students to process");
+    }
+
+    // Return response with debug info
+    res.status(201).json({
+      ...classData.toObject(),
+      _debug: {
+        studentsReceived: students ? students.length : 0,
+        studentsCreated: classData.students?.length || 0,
+        studentsArray: students || null
+      }
+    });
   } catch (error) {
     console.error("Error creating class:", error);
     if (error.code === 11000) {
       res.status(400).json({ error: "Class already exists for this department, year, and section" });
     } else {
-      res.status(500).json({ error: "Failed to create class" });
+      res.status(500).json({ error: "Failed to create class", message: error.message });
     }
   }
 });
@@ -121,23 +224,39 @@ classesRouter.post("/:id/students/upload", async (req, res) => {
     const results = {
       assigned: [],
       duplicates: [],
-      notFound: [],
+      created: [],
     };
 
     // Process each student
     for (const studentData of students) {
       const { rollNumber, name, email } = studentData;
 
-      // Find student in Student collection
-      const student = await Student.findOne({ rollNumber: rollNumber.toUpperCase() });
+      // Find or create student in Student collection
+      let student = await Student.findOne({ rollNumber: rollNumber.toUpperCase() });
 
       if (!student) {
-        // Student doesn't exist in database
-        results.notFound.push({
-          rollNumber,
-          name,
-          email,
-          reason: "Student not found in database",
+        // Student doesn't exist - CREATE NEW STUDENT
+        student = await Student.create({
+          name: name,
+          rollNumber: rollNumber.toUpperCase(),
+          email: email,
+          password: '123',
+          class: classData._id,
+          department: classData.department._id,
+          year: classData.year,
+          semester: classData.semester,
+        });
+        
+        results.created.push({
+          rollNumber: student.rollNumber,
+          name: student.name,
+          email: student.email,
+        });
+        
+        results.assigned.push({
+          rollNumber: student.rollNumber,
+          name: student.name,
+          email: student.email,
         });
         continue;
       }
@@ -162,7 +281,7 @@ classesRouter.post("/:id/students/upload", async (req, res) => {
         continue;
       }
 
-      // Assign student to the class
+      // Assign existing student to the class
       student.class = classData._id;
       student.department = classData.department._id;
       student.year = classData.year;
@@ -196,8 +315,8 @@ classesRouter.post("/:id/students/upload", async (req, res) => {
       message: `Processed ${students.length} students`,
       results: {
         assigned: results.assigned.length,
+        created: results.created.length,
         duplicates: results.duplicates.length,
-        notFound: results.notFound.length,
       },
       details: results,
       class: classData,
@@ -211,11 +330,34 @@ classesRouter.post("/:id/students/upload", async (req, res) => {
 // Delete class
 classesRouter.delete("/:id", async (req, res) => {
   try {
-    const classData = await Class.findByIdAndDelete(req.params.id);
+    const classData = await Class.findById(req.params.id);
     if (!classData) {
       return res.status(404).json({ error: "Class not found" });
     }
-    res.json({ message: "Class deleted successfully" });
+
+    // Delete all students in this class
+    const studentsDeleted = await Student.deleteMany({ class: req.params.id });
+    console.log(`Deleted ${studentsDeleted.deletedCount} students from class ${classData.name}`);
+
+    // Delete timetable for this class
+    const timetableDeleted = await Timetable.deleteMany({ class: req.params.id });
+    console.log(`Deleted ${timetableDeleted.deletedCount} timetables for class ${classData.name}`);
+
+    // Delete notifications for this class
+    const notificationsDeleted = await Notification.deleteMany({ classId: req.params.id });
+    console.log(`Deleted ${notificationsDeleted.deletedCount} notifications for class ${classData.name}`);
+
+    // Delete the class itself
+    await Class.findByIdAndDelete(req.params.id);
+
+    res.json({ 
+      message: "Class and associated data deleted successfully",
+      deleted: {
+        students: studentsDeleted.deletedCount,
+        timetables: timetableDeleted.deletedCount,
+        notifications: notificationsDeleted.deletedCount
+      }
+    });
   } catch (error) {
     console.error("Error deleting class:", error);
     res.status(500).json({ error: "Failed to delete class" });
