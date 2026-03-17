@@ -3,6 +3,9 @@ import Class from "../models/Class.js";
 import Student from "../models/Student.js";
 import Notification from "../models/Notification.js";
 import Timetable from "../models/Timetable.js";
+import { sendCompleteNotification } from "../utils/notificationService.js";
+import { sendEmail, emailTemplates, initializeEmailService } from "../utils/emailService.js";
+import { sendSMS, smsTemplates, initializeSMSService } from "../utils/smsService.js";
 
 console.log("✅ classesRoute.js loaded");
 
@@ -308,6 +311,29 @@ classesRouter.post("/:id/students/upload", async (req, res) => {
         type: "info",
         classId: classData._id,
       });
+
+      // Send actual email and SMS notifications to all assigned students
+      for (const assignedStudent of results.assigned) {
+        if (assignedStudent.email) {
+          initializeEmailService();
+          const emailTemplate = emailTemplates.classChange(
+            assignedStudent.name || 'Student',
+            `You have been assigned to ${classData.name}. Welcome!`
+          );
+          await sendEmail(
+            assignedStudent.email,
+            emailTemplate.subject,
+            emailTemplate.html
+          );
+        }
+      }
+      
+      // Send bulk notification via email/SMS service
+      await sendCompleteNotification(
+        'class_change',
+        { classId: classData._id },
+        `New students have been assigned to ${classData.name}`
+      );
     }
 
     res.json({

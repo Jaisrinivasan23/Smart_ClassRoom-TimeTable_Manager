@@ -71,21 +71,30 @@ export const sendEmail = async (to, subject, htmlContent) => {
       initializeEmailService();
     }
 
+    // Override recipient if TEST_MODE is enabled
+    let finalRecipient = to;
+    if (process.env.TEST_MODE === 'true') {
+      finalRecipient = process.env.TEST_EMAIL_TO || to;
+      console.log(`[TEST_MODE] Redirecting email from ${to} to ${finalRecipient}`);
+    }
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: to,
+      to: finalRecipient,
       subject: subject,
       html: htmlContent
     };
 
     const result = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent successfully to ${finalRecipient} - Message ID: ${result.messageId}`);
     return {
       success: true,
       messageId: result.messageId,
-      response: result.response
+      response: result.response,
+      sentTo: finalRecipient
     };
   } catch (error) {
-    console.error('Email send error:', error);
+    console.error('❌ Email send error:', error);
     return {
       success: false,
       error: error.message

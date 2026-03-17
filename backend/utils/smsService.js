@@ -62,7 +62,14 @@ export const sendSMS = async (to, message) => {
       };
     }
 
-    const formattedPhone = formatPhoneNumber(to);
+    // Override recipient if TEST_MODE is enabled
+    let finalPhone = to;
+    if (process.env.TEST_MODE === 'true') {
+      finalPhone = process.env.TEST_PHONE_NUMBER || to;
+      console.log(`[TEST_MODE] Redirecting SMS from ${to} to ${finalPhone}`);
+    }
+
+    const formattedPhone = formatPhoneNumber(finalPhone);
     const fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
     const result = await twilioClient.messages.create({
@@ -71,13 +78,15 @@ export const sendSMS = async (to, message) => {
       to: formattedPhone
     });
 
+    console.log(`✅ SMS sent successfully to ${formattedPhone} - Message SID: ${result.sid}`);
     return {
       success: true,
       messageSid: result.sid,
-      status: result.status
+      status: result.status,
+      sentTo: formattedPhone
     };
   } catch (error) {
-    console.error('SMS send error:', error);
+    console.error('❌ SMS send error:', error);
     return {
       success: false,
       error: error.message

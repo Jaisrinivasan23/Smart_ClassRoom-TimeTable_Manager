@@ -5,6 +5,9 @@ import Timetable from "../models/Timetable.js";
 import Faculty from "../models/Faculty.js";
 import Notification from "../models/Notification.js";
 import Course from "../models/course.js";
+import { sendCompleteNotification } from "../utils/notificationService.js";
+import { sendEmail, emailTemplates, initializeEmailService } from "../utils/emailService.js";
+import { sendSMS, smsTemplates, initializeSMSService } from "../utils/smsService.js";
 
 const router = express.Router();
 
@@ -112,6 +115,13 @@ router.post("/", async (req, res) => {
     });
 
     await adminNotification.save();
+
+    // Send actual email and SMS notifications
+    await sendCompleteNotification(
+      'room_change_request',
+      { facultyId },
+      `${faculty.name} requested a room change for ${scheduleEntry.courseName} (${scheduleEntry.courseCode}) on ${day}, Period ${period}`
+    );
 
     res.status(201).json({ 
       message: "Room change request submitted successfully",

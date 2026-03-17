@@ -3,6 +3,9 @@ import LeaveRequest from "../models/LeaveRequest.js";
 import Faculty from "../models/Faculty.js";
 import Timetable from "../models/Timetable.js";
 import Notification from "../models/Notification.js";
+import { sendCompleteNotification } from "../utils/notificationService.js";
+import { sendEmail, emailTemplates, initializeEmailService } from "../utils/emailService.js";
+import { sendSMS, smsTemplates, initializeSMSService, formatPhoneNumber } from "../utils/smsService.js";
 
 const router = express.Router();
 
@@ -71,6 +74,13 @@ router.post("/", async (req, res) => {
       message: `Faculty has requested leave for ${day}, Period ${period}. Reason: ${reason}`,
       type: "info",
     });
+
+    // Send actual email and SMS notifications
+    await sendCompleteNotification(
+      'leave_request',
+      { facultyId },
+      `Faculty has requested leave for ${day}, Period ${period}. Reason: ${reason}`
+    );
 
     res.status(201).json({
       success: true,
@@ -239,6 +249,26 @@ router.put("/:id/approve", async (req, res) => {
       facultyId: leaveRequest.faculty._id || leaveRequest.faculty,
     });
 
+    // Send email/SMS to original faculty
+    if (leaveRequest.faculty?.email) {
+      initializeEmailService();
+      const emailTemplate = emailTemplates.newRequest(
+        leaveRequest.faculty?.name || 'Faculty',
+        'Leave Approval',
+        `Your leave request for ${leaveRequest.day}, Period ${leaveRequest.period} has been approved. ${substitute?.name || "A substitute"} will cover your class.`
+      );
+      await sendEmail(
+        leaveRequest.faculty.email,
+        emailTemplate.subject,
+        emailTemplate.html
+      );
+    }
+    if (leaveRequest.faculty?.phone) {
+      initializeSMSService();
+      const smsMessage = `Smart Classroom: Your leave request for ${leaveRequest.day} Period ${leaveRequest.period} has been approved.`;
+      await sendSMS(leaveRequest.faculty.phone, smsMessage);
+    }
+
     // Notify substitute faculty with full details
     await Notification.create({
       title: "Substitution Assignment",
@@ -246,6 +276,26 @@ router.put("/:id/approve", async (req, res) => {
       type: "info",
       facultyId: substituteId,
     });
+
+    // Send email/SMS to substitute faculty
+    if (substitute?.email) {
+      initializeEmailService();
+      const emailTemplate = emailTemplates.newRequest(
+        substitute.name || 'Faculty',
+        'Substitution Assignment',
+        substituteMessage
+      );
+      await sendEmail(
+        substitute.email,
+        emailTemplate.subject,
+        emailTemplate.html
+      );
+    }
+    if (substitute?.phone) {
+      initializeSMSService();
+      const smsMessage = `Smart Classroom: You have been assigned to substitute for ${facultyName} on ${leaveRequest.day}, Period ${leaveRequest.period}.`;
+      await sendSMS(substitute.phone, smsMessage);
+    }
 
     // Notify students of the class about substitute faculty
     if (leaveRequest.affectedClass) {
@@ -309,6 +359,26 @@ router.put("/:id/reject", async (req, res) => {
       type: "error",
       facultyId: typeof leaveRequest.faculty === 'object' ? leaveRequest.faculty._id : leaveRequest.faculty,
     });
+
+    // Send email/SMS to faculty
+    if (leaveRequest.faculty?.email) {
+      initializeEmailService();
+      const emailTemplate = emailTemplates.newRequest(
+        leaveRequest.faculty?.name || 'Faculty',
+        'Leave Request Rejection',
+        `Your leave request for ${leaveRequest.day}, Period ${leaveRequest.period} has been rejected. Reason: ${leaveRequest.rejectedReason}`
+      );
+      await sendEmail(
+        leaveRequest.faculty.email,
+        emailTemplate.subject,
+        emailTemplate.html
+      );
+    }
+    if (leaveRequest.faculty?.phone) {
+      initializeSMSService();
+      const smsMessage = `Smart Classroom: Your leave request for ${leaveRequest.day} Period ${leaveRequest.period} has been rejected.`;
+      await sendSMS(leaveRequest.faculty.phone, smsMessage);
+    }
 
     res.status(200).json({
       success: true,
