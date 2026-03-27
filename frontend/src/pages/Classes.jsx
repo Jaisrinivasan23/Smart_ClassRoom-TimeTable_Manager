@@ -148,7 +148,7 @@ const ClassesPage = () => {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 space-y-8">
           {/* Header */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-3">

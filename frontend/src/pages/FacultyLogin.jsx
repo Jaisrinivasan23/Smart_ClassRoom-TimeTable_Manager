@@ -42,27 +42,27 @@ export default function FacultyLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
+      <Card className="w-full max-w-md shadow-xl bg-slate-900 border-slate-800">
         <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mb-2">
+          <div className="mx-auto w-16 h-16 bg-indigo-600/80 rounded-full flex items-center justify-center mb-2">
             <GraduationCap className="w-10 h-10 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold">Faculty Login</CardTitle>
-          <CardDescription>Sign in to access your portal</CardDescription>
+          <CardTitle className="text-2xl font-bold text-slate-100">Faculty Login</CardTitle>
+          <CardDescription className="text-slate-400">Sign in to access your portal</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+              <div className="bg-red-900/30 border border-red-700/60 text-red-200 px-4 py-3 rounded-md text-sm">
                 {error}
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email" className="text-slate-300">Email Address</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                 <Input
                   id="email"
                   type="email"
@@ -70,15 +70,15 @@ export default function FacultyLogin() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-10"
+                  className="pl-10 bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-slate-300">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                 <Input
                   id="password"
                   type="password"
@@ -86,10 +86,10 @@ export default function FacultyLogin() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pl-10"
+                  className="pl-10 bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500"
                 />
               </div>
-              <p className="text-xs text-gray-500">Default password: 123</p>
+              <p className="text-xs text-slate-400">Default password: 123</p>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
@@ -100,7 +100,7 @@ export default function FacultyLogin() {
               <Button
                 type="button"
                 variant="link"
-                className="text-sm text-indigo-600"
+                className="text-sm text-indigo-300 hover:text-indigo-200"
                 onClick={() => navigate("/")}
               >
                 ← Back to Admin Login

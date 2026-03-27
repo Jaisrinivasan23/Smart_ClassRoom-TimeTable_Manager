@@ -168,16 +168,31 @@ export default function LeaveRequests() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      pending: { variant: "secondary", icon: AlertCircle, text: "Pending", color: "text-yellow-600" },
-      approved: { variant: "success", icon: CheckCircle, text: "Approved", color: "text-green-600" },
-      rejected: { variant: "destructive", icon: XCircle, text: "Rejected", color: "text-red-600" },
+      pending: {
+        variant: "secondary",
+        icon: AlertCircle,
+        text: "Pending",
+        className: "bg-amber-900/40 text-amber-200 border border-amber-700/60",
+      },
+      approved: {
+        variant: "success",
+        icon: CheckCircle,
+        text: "Approved",
+        className: "bg-green-900/40 text-green-200 border border-green-700/60",
+      },
+      rejected: {
+        variant: "destructive",
+        icon: XCircle,
+        text: "Rejected",
+        className: "bg-red-900/40 text-red-200 border border-red-700/60",
+      },
     };
 
     const config = styles[status] || styles.pending;
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
+      <Badge variant={config.variant} className={`flex items-center gap-1 w-fit ${config.className}`}>
         <Icon className="w-3 h-3" />
         {config.text}
       </Badge>
@@ -201,38 +216,38 @@ export default function LeaveRequests() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 px-4 md:px-6 py-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Faculty Leave Requests</h1>
-          <p className="text-gray-500 mt-1">Manage faculty unavailability and assign substitutes</p>
+          <h1 className="text-3xl font-bold text-slate-100">Faculty Leave Requests</h1>
+          <p className="text-slate-400 mt-1">Manage faculty unavailability and assign substitutes</p>
         </div>
         <div className="flex gap-2">
-          <Badge variant="secondary" className="text-lg px-4 py-2">
+          <Badge variant="secondary" className="text-lg px-4 py-2 bg-slate-800 text-slate-100 border border-slate-700">
             {leaveRequests.filter((r) => r.status === "pending").length} Pending
           </Badge>
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <Label>Search</Label>
+              <Label className="text-slate-300">Search</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                 <Input
                   placeholder="Search by faculty name, email, or reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500"
                 />
               </div>
             </div>
             <div className="w-full md:w-48">
-              <Label>Status Filter</Label>
+              <Label className="text-slate-300">Status Filter</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -253,26 +268,26 @@ export default function LeaveRequests() {
       <div className="grid grid-cols-1 gap-4">
         {filteredRequests.length > 0 ? (
           filteredRequests.map((request) => (
-            <Card key={request._id} className="hover:shadow-md transition-shadow">
+            <Card key={request._id} className="hover:shadow-md transition-shadow bg-slate-900 border-slate-800">
               <CardContent className="pt-6">
                 <div className="flex flex-col lg:flex-row justify-between gap-4">
                   {/* Request Details */}
                   <div className="flex-1 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                          <User className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 bg-indigo-900/50 rounded-full flex items-center justify-center">
+                          <User className="w-6 h-6 text-indigo-300" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-lg text-gray-900">
+                          <h3 className="font-semibold text-lg text-slate-100">
                             {typeof request.faculty?.name === 'object' ? request.faculty?.name?.name || 'Unknown Faculty' : request.faculty?.name || "Unknown Faculty"}
                           </h3>
-                          <p className="text-sm text-gray-500">{typeof request.faculty?.email === 'object' ? request.faculty?.email?.email || '' : request.faculty?.email}</p>
+                          <p className="text-sm text-slate-400">{typeof request.faculty?.email === 'object' ? request.faculty?.email?.email || '' : request.faculty?.email}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {request.reason?.includes("(Whole Day Leave)") && (
-                          <Badge className="bg-orange-100 text-orange-800 border-orange-300">
+                          <Badge className="bg-orange-900/40 text-orange-200 border-orange-700">
                             🌅 Whole Day
                           </Badge>
                         )}
@@ -281,59 +296,59 @@ export default function LeaveRequests() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                      <div className="flex items-center gap-2 text-gray-600">
+                      <div className="flex items-center gap-2 text-slate-400">
                         <Calendar className="w-4 h-4" />
-                        <span className="font-medium">Date:</span>
+                        <span className="font-medium text-slate-300">Date:</span>
                         {new Date(request.date).toLocaleDateString()}
                       </div>
-                      <div className="flex items-center gap-2 text-gray-600">
+                      <div className="flex items-center gap-2 text-slate-400">
                         <Clock className="w-4 h-4" />
-                        <span className="font-medium">Time:</span>
+                        <span className="font-medium text-slate-300">Time:</span>
                         {request.day}, Period {request.period} ({getTimeSlotDisplay(request.period)})
                       </div>
                       {request.affectedClass && (
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-slate-400">
                           <Users className="w-4 h-4" />
-                          <span className="font-medium">Class:</span>
+                          <span className="font-medium text-slate-300">Class:</span>
                           {typeof request.affectedClass.name === 'object' ? request.affectedClass.name?.name || 'N/A' : request.affectedClass.name} - {typeof request.affectedClass.section === 'object' ? request.affectedClass.section?.section || 'N/A' : request.affectedClass.section}
                         </div>
                       )}
                       {request.affectedCourse && (
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-slate-400">
                           <BookOpen className="w-4 h-4" />
-                          <span className="font-medium">Course:</span>
+                          <span className="font-medium text-slate-300">Course:</span>
                           {typeof request.affectedCourse.code === 'object' ? request.affectedCourse.code?.code || request.affectedCourse.code?.name || 'N/A' : request.affectedCourse.code} - {typeof request.affectedCourse.name === 'object' ? request.affectedCourse.name?.name || 'N/A' : request.affectedCourse.name}
                         </div>
                       )}
                     </div>
 
-                    <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="bg-slate-800/60 p-3 rounded-md">
                       <p className="text-sm">
-                        <span className="font-semibold text-gray-700">Reason:</span>{" "}
-                        <span className="text-gray-600">{request.reason?.replace(" (Whole Day Leave)", "") || request.reason}</span>
+                        <span className="font-semibold text-slate-300">Reason:</span>{" "}
+                        <span className="text-slate-400">{request.reason?.replace(" (Whole Day Leave)", "") || request.reason}</span>
                       </p>
                     </div>
 
                     {request.status === "approved" && request.substitute && (
-                      <div className="bg-green-50 p-3 rounded-md border border-green-200">
-                        <p className="text-sm text-green-800">
+                      <div className="bg-green-900/30 p-3 rounded-md border border-green-700/60">
+                        <p className="text-sm text-green-200">
                           <span className="font-semibold">Substitute Assigned:</span> {typeof request.substitute.name === 'object' ? request.substitute.name?.name || 'N/A' : request.substitute.name}
                         </p>
-                        <p className="text-xs text-green-600">
+                        <p className="text-xs text-green-300">
                           Approved on: {new Date(request.approvedAt).toLocaleString()}
                         </p>
                       </div>
                     )}
 
                     {request.status === "rejected" && request.rejectedReason && (
-                      <div className="bg-red-50 p-3 rounded-md border border-red-200">
-                        <p className="text-sm text-red-800">
+                      <div className="bg-red-900/30 p-3 rounded-md border border-red-700/60">
+                        <p className="text-sm text-red-200">
                           <span className="font-semibold">Rejection Reason:</span> {request.rejectedReason}
                         </p>
                       </div>
                     )}
 
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-slate-500">
                       Submitted: {new Date(request.createdAt).toLocaleString()}
                     </p>
                   </div>
@@ -363,10 +378,10 @@ export default function LeaveRequests() {
             </Card>
           ))
         ) : (
-          <Card>
+          <Card className="bg-slate-900 border-slate-800">
             <CardContent className="py-12 text-center">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No leave requests found matching your filters</p>
+              <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+              <p className="text-slate-400">No leave requests found matching your filters</p>
             </CardContent>
           </Card>
         )}
@@ -374,42 +389,42 @@ export default function LeaveRequests() {
 
       {/* Approval Modal */}
       {showApprovalModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-700">
+              <CardTitle className="flex items-center gap-2 text-green-300">
                 <CheckCircle className="w-6 h-6" />
                 Approve Leave Request
               </CardTitle>
-              <CardDescription>Select a substitute faculty to be notified (timetable will not be modified)</CardDescription>
+              <CardDescription className="text-slate-400">Select a substitute faculty to be notified (timetable will not be modified)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Request Summary */}
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <h4 className="font-semibold text-gray-900">Request Details</h4>
+              <div className="bg-slate-800/60 p-4 rounded-lg space-y-2">
+                <h4 className="font-semibold text-slate-100">Request Details</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-gray-600">Faculty:</span>
-                    <span className="ml-2 font-medium">{typeof selectedRequest.faculty?.name === 'object' ? selectedRequest.faculty?.name?.name || 'Unknown' : selectedRequest.faculty?.name}</span>
+                    <span className="text-slate-400">Faculty:</span>
+                    <span className="ml-2 font-medium text-slate-200">{typeof selectedRequest.faculty?.name === 'object' ? selectedRequest.faculty?.name?.name || 'Unknown' : selectedRequest.faculty?.name}</span>
                   </div>
                   <div>
-                    <span className="text-gray-600">Time:</span>
-                    <span className="ml-2 font-medium">
+                    <span className="text-slate-400">Time:</span>
+                    <span className="ml-2 font-medium text-slate-200">
                       {selectedRequest.day}, P{selectedRequest.period}
                     </span>
                   </div>
                   {selectedRequest.affectedClass && (
                     <div>
-                      <span className="text-gray-600">Class:</span>
-                      <span className="ml-2 font-medium">
+                      <span className="text-slate-400">Class:</span>
+                      <span className="ml-2 font-medium text-slate-200">
                         {typeof selectedRequest.affectedClass.name === 'object' ? selectedRequest.affectedClass.name?.name || 'N/A' : selectedRequest.affectedClass.name} - {typeof selectedRequest.affectedClass.section === 'object' ? selectedRequest.affectedClass.section?.section || 'N/A' : selectedRequest.affectedClass.section}
                       </span>
                     </div>
                   )}
                   {selectedRequest.affectedCourse && (
                     <div>
-                      <span className="text-gray-600">Course:</span>
-                      <span className="ml-2 font-medium">{typeof selectedRequest.affectedCourse.code === 'object' ? selectedRequest.affectedCourse.code?.code || selectedRequest.affectedCourse.code?.name || 'N/A' : selectedRequest.affectedCourse.code}</span>
+                      <span className="text-slate-400">Course:</span>
+                      <span className="ml-2 font-medium text-slate-200">{typeof selectedRequest.affectedCourse.code === 'object' ? selectedRequest.affectedCourse.code?.code || selectedRequest.affectedCourse.code?.name || 'N/A' : selectedRequest.affectedCourse.code}</span>
                     </div>
                   )}
                 </div>
@@ -417,7 +432,7 @@ export default function LeaveRequests() {
 
               {/* Available Faculty */}
               <div className="space-y-2">
-                <Label htmlFor="substitute">Select Substitute Faculty *</Label>
+                <Label htmlFor="substitute" className="text-slate-300">Select Substitute Faculty *</Label>
                 {availableFaculty.length > 0 ? (
                   <Select value={selectedSubstitute} onValueChange={setSelectedSubstitute}>
                     <SelectTrigger>
@@ -428,9 +443,9 @@ export default function LeaveRequests() {
                         <SelectItem key={faculty._id} value={faculty._id}>
                           <div className="flex flex-col">
                             <span className="font-medium">{typeof faculty.name === 'object' ? faculty.name?.name || 'Faculty' : faculty.name}</span>
-                            <span className="text-xs text-gray-500">{typeof faculty.email === 'object' ? faculty.email?.email || '' : faculty.email}</span>
+                            <span className="text-xs text-slate-400">{typeof faculty.email === 'object' ? faculty.email?.email || '' : faculty.email}</span>
                             {faculty.courses && faculty.courses.length > 0 && (
-                              <span className="text-xs text-gray-400">
+                              <span className="text-xs text-slate-500">
                                 Teaches: {faculty.courses.map((c) => typeof c === 'object' ? (c?.code || c?.name || 'Course') : c).join(", ")}
                               </span>
                             )}
@@ -440,7 +455,7 @@ export default function LeaveRequests() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">
+                  <div className="bg-yellow-900/30 border border-yellow-700/60 rounded-md p-3 text-sm text-yellow-200">
                     <AlertCircle className="w-4 h-4 inline mr-2" />
                     No available faculty found for this time slot. You may need to manually adjust the
                     timetable.
@@ -449,7 +464,7 @@ export default function LeaveRequests() {
               </div>
 
               {/* Information Note */}
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+              <div className="bg-blue-900/30 border border-blue-700/60 rounded-md p-3 text-sm text-blue-200">
                 <AlertCircle className="w-4 h-4 inline mr-2" />
                 <strong>Note:</strong> The selected substitute will receive a notification about this assignment. 
                 The timetable will remain unchanged and needs to be manually updated if required.
@@ -471,7 +486,7 @@ export default function LeaveRequests() {
                     setSelectedSubstitute("");
                   }}
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 border-slate-700 text-slate-200"
                   disabled={processing}
                 >
                   Cancel
@@ -484,36 +499,37 @@ export default function LeaveRequests() {
 
       {/* Rejection Modal */}
       {showRejectionModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg bg-slate-900 border-slate-800">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-700">
+              <CardTitle className="flex items-center gap-2 text-red-300">
                 <XCircle className="w-6 h-6" />
                 Reject Leave Request
               </CardTitle>
-              <CardDescription>Provide a reason for rejection</CardDescription>
+              <CardDescription className="text-slate-400">Provide a reason for rejection</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Request Summary */}
-              <div className="bg-gray-50 p-3 rounded-md text-sm">
+              <div className="bg-slate-800/60 p-3 rounded-md text-sm">
                 <p>
-                  <span className="font-semibold">Faculty:</span> {typeof selectedRequest.faculty?.name === 'object' ? selectedRequest.faculty?.name?.name || 'Unknown' : selectedRequest.faculty?.name}
+                  <span className="font-semibold text-slate-300">Faculty:</span> {typeof selectedRequest.faculty?.name === 'object' ? selectedRequest.faculty?.name?.name || 'Unknown' : selectedRequest.faculty?.name}
                 </p>
                 <p>
-                  <span className="font-semibold">Time:</span> {selectedRequest.day}, Period{" "}
+                  <span className="font-semibold text-slate-300">Time:</span> {selectedRequest.day}, Period{" "}
                   {selectedRequest.period}
                 </p>
               </div>
 
               {/* Rejection Reason */}
               <div className="space-y-2">
-                <Label htmlFor="rejectionReason">Reason for Rejection *</Label>
+                <Label htmlFor="rejectionReason" className="text-slate-300">Reason for Rejection *</Label>
                 <Textarea
                   id="rejectionReason"
                   placeholder="Please provide a clear reason for rejecting this request..."
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={4}
+                  className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500"
                 />
               </div>
 
@@ -534,7 +550,7 @@ export default function LeaveRequests() {
                     setRejectionReason("");
                   }}
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 border-slate-700 text-slate-200"
                   disabled={processing}
                 >
                   Cancel

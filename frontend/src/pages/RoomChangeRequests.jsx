@@ -159,9 +159,21 @@ export default function RoomChangeRequests() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      pending: { className: "bg-yellow-100 text-yellow-800", icon: Clock, text: "Pending" },
-      approved: { className: "bg-green-100 text-green-800", icon: CheckCircle, text: "Approved" },
-      rejected: { className: "bg-red-100 text-red-800", icon: XCircle, text: "Rejected" },
+      pending: {
+        className: "bg-amber-900/40 text-amber-200 border border-amber-700/60",
+        icon: Clock,
+        text: "Pending",
+      },
+      approved: {
+        className: "bg-green-900/40 text-green-200 border border-green-700/60",
+        icon: CheckCircle,
+        text: "Approved",
+      },
+      rejected: {
+        className: "bg-red-900/40 text-red-200 border border-red-700/60",
+        icon: XCircle,
+        text: "Rejected",
+      },
     };
 
     const config = styles[status] || styles.pending;
@@ -187,14 +199,14 @@ export default function RoomChangeRequests() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="space-y-6 min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 px-4 md:px-6 py-6">
+      <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DoorOpen className="w-6 h-6" />
+          <CardTitle className="flex items-center gap-2 text-slate-100">
+            <DoorOpen className="w-6 h-6 text-indigo-300" />
             Room Change Requests
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-slate-400">
             Manage faculty room change requests and allocate available rooms
           </CardDescription>
         </CardHeader>
@@ -203,19 +215,19 @@ export default function RoomChangeRequests() {
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4" />
                 <Input
                   type="text"
                   placeholder="Search by faculty, course, or room..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500"
                 />
               </div>
             </div>
             <div className="w-full md:w-48">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-100">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,73 +244,73 @@ export default function RoomChangeRequests() {
           {filteredRequests.length > 0 ? (
             <div className="space-y-4">
               {filteredRequests.map((request) => (
-                <Card key={request._id} className="border-l-4 border-l-indigo-500">
+                <Card key={request._id} className="border-l-4 border-l-indigo-500 bg-slate-900 border-slate-800">
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row justify-between gap-4">
                       <div className="flex-1 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-gray-500" />
-                            <span className="font-semibold text-lg">{typeof request.faculty?.name === 'object' ? request.faculty?.name?.name || 'Faculty' : request.faculty?.name}</span>
+                            <User className="w-4 h-4 text-slate-400" />
+                            <span className="font-semibold text-lg text-slate-100">{typeof request.faculty?.name === 'object' ? request.faculty?.name?.name || 'Faculty' : request.faculty?.name}</span>
                           </div>
                           {getStatusBadge(request.status)}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                           <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-500" />
-                            <span className="text-gray-700">
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-300">
                               {request.day}, Period {request.period}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <Book className="w-4 h-4 text-gray-500" />
-                            <span className="text-gray-700">
+                            <Book className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-300">
                               {request.affectedCourseName} ({request.affectedCourseCode})
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-gray-500" />
-                            <span className="text-gray-700">
-                              Current: <span className="font-semibold">{request.currentRoomName}</span>
+                            <MapPin className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-300">
+                              Current: <span className="font-semibold text-slate-100">{request.currentRoomName}</span>
                             </span>
                           </div>
 
                           {request.allocatedRoom && (
                             <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-green-600" />
-                              <span className="text-green-700">
-                                New: <span className="font-semibold">{request.allocatedRoomName}</span>
+                              <MapPin className="w-4 h-4 text-green-400" />
+                              <span className="text-green-300">
+                                New: <span className="font-semibold text-green-200">{request.allocatedRoomName}</span>
                               </span>
                             </div>
                           )}
 
-                          <div className="text-gray-600">
-                            <span className="font-semibold">Class:</span> {request.affectedClassName}
+                          <div className="text-slate-300">
+                            <span className="font-semibold text-slate-200">Class:</span> {request.affectedClassName}
                           </div>
 
-                          <div className="text-gray-600">
-                            <span className="font-semibold">Preferred:</span> {request.requestedRoomType}
+                          <div className="text-slate-300">
+                            <span className="font-semibold text-slate-200">Preferred:</span> {request.requestedRoomType}
                           </div>
                         </div>
 
-                        <div className="bg-gray-50 p-3 rounded-md">
-                          <p className="text-sm text-gray-700">
-                            <span className="font-semibold">Reason:</span> {request.reason}
+                        <div className="bg-slate-800/60 p-3 rounded-md">
+                          <p className="text-sm text-slate-300">
+                            <span className="font-semibold text-slate-200">Reason:</span> {request.reason}
                           </p>
                         </div>
 
                         {request.rejectionReason && (
-                          <div className="bg-red-50 p-3 rounded-md">
-                            <p className="text-sm text-red-700">
+                          <div className="bg-red-900/30 p-3 rounded-md border border-red-700/60">
+                            <p className="text-sm text-red-200">
                               <span className="font-semibold">Rejection Reason:</span> {request.rejectionReason}
                             </p>
                           </div>
                         )}
 
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-slate-500">
                           Requested: {new Date(request.createdAt).toLocaleString()}
                         </div>
                       </div>
@@ -328,8 +340,8 @@ export default function RoomChangeRequests() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <DoorOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No room change requests found</p>
+              <DoorOpen className="w-16 h-16 text-slate-500 mx-auto mb-4" />
+              <p className="text-slate-400">No room change requests found</p>
             </div>
           )}
         </CardContent>
@@ -337,17 +349,18 @@ export default function RoomChangeRequests() {
 
       {/* Approval Modal */}
       {showApprovalModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl">
-            <CardHeader className="border-b">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl bg-slate-900 border-slate-800">
+            <CardHeader className="border-b border-slate-800">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+                <CardTitle className="flex items-center gap-2 text-slate-100">
+                  <CheckCircle className="w-5 h-5 text-green-300" />
                   Approve Room Change Request
                 </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="text-slate-300 hover:text-slate-100"
                   onClick={() => {
                     setShowApprovalModal(false);
                     setSelectedRequest(null);
@@ -361,33 +374,33 @@ export default function RoomChangeRequests() {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p className="text-sm">
-                    <span className="font-semibold">Faculty:</span> {typeof selectedRequest.faculty?.name === 'object' ? selectedRequest.faculty?.name?.name || 'Faculty' : selectedRequest.faculty?.name}
+                <div className="bg-slate-800/60 p-4 rounded-lg space-y-2">
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Faculty:</span> {typeof selectedRequest.faculty?.name === 'object' ? selectedRequest.faculty?.name?.name || 'Faculty' : selectedRequest.faculty?.name}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">Course:</span> {selectedRequest.affectedCourseName} (
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Course:</span> {selectedRequest.affectedCourseName} (
                     {selectedRequest.affectedCourseCode})
                   </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">Class:</span> {selectedRequest.affectedClassName}
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Class:</span> {selectedRequest.affectedClassName}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">Time:</span> {selectedRequest.day}, Period{" "}
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Time:</span> {selectedRequest.day}, Period{" "}
                     {selectedRequest.period}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">Current Room:</span> {selectedRequest.currentRoomName}
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Current Room:</span> {selectedRequest.currentRoomName}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">Preferred Type:</span> {selectedRequest.requestedRoomType}
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Preferred Type:</span> {selectedRequest.requestedRoomType}
                   </p>
                 </div>
 
                 <div>
-                  <Label htmlFor="available-rooms">Select Available Room</Label>
+                  <Label htmlFor="available-rooms" className="text-slate-300">Select Available Room</Label>
                   <Select value={selectedRoom} onValueChange={setSelectedRoom}>
-                    <SelectTrigger id="available-rooms">
+                    <SelectTrigger id="available-rooms" className="bg-slate-950 border-slate-800 text-slate-100">
                       <SelectValue placeholder="Choose a room to allocate" />
                     </SelectTrigger>
                     <SelectContent>
@@ -405,7 +418,7 @@ export default function RoomChangeRequests() {
                     </SelectContent>
                   </Select>
                   {availableRooms.length === 0 && (
-                    <p className="text-sm text-red-600 mt-2">
+                    <p className="text-sm text-red-300 mt-2">
                       No rooms are available for this time slot
                     </p>
                   )}
@@ -428,6 +441,7 @@ export default function RoomChangeRequests() {
                       setSelectedRoom("");
                       setAvailableRooms([]);
                     }}
+                    className="border-slate-700 text-slate-200"
                     disabled={approving}
                   >
                     Cancel
@@ -441,17 +455,18 @@ export default function RoomChangeRequests() {
 
       {/* Rejection Modal */}
       {showRejectionModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl">
-            <CardHeader className="border-b">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl bg-slate-900 border-slate-800">
+            <CardHeader className="border-b border-slate-800">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <XCircle className="w-5 h-5 text-red-600" />
+                <CardTitle className="flex items-center gap-2 text-slate-100">
+                  <XCircle className="w-5 h-5 text-red-300" />
                   Reject Room Change Request
                 </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="text-slate-300 hover:text-slate-100"
                   onClick={() => {
                     setShowRejectionModal(false);
                     setSelectedRequest(null);
@@ -464,29 +479,29 @@ export default function RoomChangeRequests() {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p className="text-sm">
-                    <span className="font-semibold">Faculty:</span> {selectedRequest.faculty?.name}
+                <div className="bg-slate-800/60 p-4 rounded-lg space-y-2">
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Faculty:</span> {selectedRequest.faculty?.name}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">Course:</span> {selectedRequest.affectedCourseName} (
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Course:</span> {selectedRequest.affectedCourseName} (
                     {selectedRequest.affectedCourseCode})
                   </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">Time:</span> {selectedRequest.day}, Period{" "}
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-slate-200">Time:</span> {selectedRequest.day}, Period{" "}
                     {selectedRequest.period}
                   </p>
                 </div>
 
                 <div>
-                  <Label htmlFor="rejection-reason">Rejection Reason</Label>
+                  <Label htmlFor="rejection-reason" className="text-slate-300">Rejection Reason</Label>
                   <Textarea
                     id="rejection-reason"
                     placeholder="Explain why this request is being rejected..."
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
                     rows={4}
-                    className="mt-2"
+                    className="mt-2 bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500"
                   />
                 </div>
 
@@ -507,6 +522,7 @@ export default function RoomChangeRequests() {
                       setSelectedRequest(null);
                       setRejectionReason("");
                     }}
+                    className="border-slate-700 text-slate-200"
                     disabled={rejecting}
                   >
                     Cancel
